@@ -1,0 +1,368 @@
+/* =========================================================
+   ADMIN THEME (CoreX-like) — Scope: .admin-shell
+   - Sidebar oscuro (navy) + contenido claro
+   - KPI pastel
+   - Tipografía oscura (alta legibilidad)
+   - NO afecta al sitio público
+   ========================================================= */
+
+.admin-shell {
+  /* Paleta base (contenido) */
+  --cx-bg: #ffffff;              /* fondo general claro */
+  --cx-surface: #ffffff;         /* tarjetas / barras blancas */
+  --cx-surface-2: #fafafa;       /* superficies suaves */
+  --cx-text: #0f172a;            /* texto principal (slate-900) */
+  --cx-muted: #060707;           /* texto secundario (slate-600) */
+  --cx-border: rgba(15, 23, 42, .10);
+  --cx-border-2: rgba(15, 23, 42, .16);
+
+  /* Acentos */
+  --cx-primary: #cdd2db;         /* azul accesible */
+  --cx-primary-2: #1d4ed8;
+
+  /* Sidebar (oscuro) */
+  --cx-side-bg: #cdd2db;         /* navy oscuro */
+  --cx-side-bg-2: #0e1a33;       /* hover */
+  --cx-side-text: #f4f4f7;       /* slate-200 */
+  --cx-side-muted: #94a3b8;      /* slate-400 */
+  --cx-side-active: #e6efff;     /* pill activo claro */
+  --cx-side-active-text: #f2f2f3;
+
+  /* KPI pasteles */
+  --kpi-sun:  #fff0c2;           /* amarillo suave */
+  --kpi-mint: #c9f2f2;           /* menta */
+  --kpi-rose: #ffd6df;           /* rosa */
+  --kpi-lav:  #e3e4ff;           /* lavanda */
+
+  /* UI */
+  --cx-r-lg: 18px;
+  --cx-r: 12px;
+  --cx-shadow: 0 18px 40px rgba(2, 6, 23, .08);
+  --cx-shadow-soft: 0 10px 24px rgba(2, 6, 23, .06);
+
+  /* Mapear Bootstrap dentro del scope admin */
+  --bs-body-bg: var(--cx-bg);
+  --bs-body-color: var(--cx-text);
+  --bs-primary: var(--cx-primary);
+  --bs-border-color: var(--cx-border);
+  --bs-card-bg: var(--cx-surface);
+  --bs-card-border-color: var(--cx-border);
+
+  color: var(--cx-text);
+  background: var(--cx-bg);
+  min-height: 100vh;
+}
+
+/* =========================================================
+   LAYOUT
+   ========================================================= */
+.admin-shell .admin-grid{
+  display: grid;
+  grid-template-columns: 270px 1fr;
+  gap: 18px;
+}
+
+/* ============ HEADER: alineado y chip para "Cerrar sesión" ============ */
+.admin-shell .admin-header{
+  background: var(--cx-surface, #fff);
+  border: 1px solid var(--cx-border, rgba(15,23,42,.08));
+  border-radius: 16px;
+  box-shadow: var(--cx-shadow-soft, 0 10px 24px rgba(2,6,23,.06));
+}
+
+/* Asegura alineación vertical y separación consistente */
+.admin-shell .admin-header .nav-actions{
+  display: flex;
+  align-items: center;       /* <-- centra verticalmente */
+  gap: 16px;
+}
+
+/* Enlaces del header */
+.admin-shell .admin-header .ah-link{
+  color: var(--cx-text, #0f172a);
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;       /* <-- centra verticalmente */
+  line-height: 1;            /* alturas parejas */
+  padding: 8px 0;            /* mismo alto visual que el chip */
+}
+.admin-shell .admin-header .ah-link:hover{
+  color: var(--cx-primary, #2563eb);
+}
+
+/* Chip "Cerrar sesión" (mismo espíritu visual que tus pills/tabs) */
+.admin-shell .btn-chip{
+  --chip-bg: #eef2f7;                  /* fondo claro */
+  --chip-text: var(--cx-text, #0f172a);
+  --chip-bd: var(--cx-border, rgba(15,23,42,.12));
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  border: 1px solid var(--chip-bd);
+  padding: 8px 14px;                   /* altura parecida a tu tab */
+  border-radius: 12px;                 /* pill */
+  font-weight: 700;
+  line-height: 1;                      /* centra texto */
+  display: inline-flex;
+  align-items: center;                 /* centra verticalmente */
+  justify-content: center;
+  box-shadow: inset 0 -1px 0 rgba(15,23,42,.04);
+}
+.admin-shell .btn-chip:hover{
+  background: #e6ebf3;
+  border-color: var(--cx-primary, #2563eb);
+}
+.admin-shell .btn-chip:active{
+  transform: translateY(0.5px);
+}
+
+
+/* Sidebar (oscuro) */
+.admin-shell .admin-sidebar{
+  background: var(--cx-side-bg);
+  color: var(--cx-side-text);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--cx-r-lg);
+  padding: 14px;
+  position: sticky;
+  top: 16px;
+  height: max-content;
+  box-shadow: var(--cx-shadow);
+}
+.admin-shell .admin-sidebar .section-title{
+  color: var(--cx-side-muted);
+  font-size: .75rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin: 12px 10px 8px;
+}
+.admin-shell .admin-sidebar .list-group{
+  background: transparent;
+}
+.admin-shell .admin-sidebar .list-group-item{
+  background: transparent;
+  color: var(--cx-side-text);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: .64rem .75rem;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  transition: background .16s ease, border-color .16s;
+}
+.admin-shell .admin-sidebar .list-group-item:hover{
+  background: var(--cx-side-bg-2);
+  border-color: rgba(148,163,184,.18);
+  color: #fff;
+}
+.admin-shell .admin-sidebar .list-group-item.active,
+.admin-shell .admin-sidebar .list-group-item.active:hover{
+  color: var(--cx-side-active-text);
+  background: var(--cx-side-active);
+  border-color: transparent;
+}
+
+/* Main (claro) */
+.admin-shell .admin-main{
+  background: var(--cx-surface);
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-r-lg);
+  box-shadow: var(--cx-shadow);
+}
+
+/* Títulos / breadcrumb */
+.admin-shell h1, .admin-shell h2, .admin-shell h3,
+.admin-shell h4, .admin-shell h5{
+  color: var(--cx-text);
+}
+.admin-shell .breadcrumb{ color: var(--cx-muted); }
+
+/* =========================================================
+   CARDS & KPI
+   ========================================================= */
+.admin-shell .card{
+  background: var(--cx-surface);
+  border-color: var(--cx-border);
+  border-radius: var(--cx-r);
+  box-shadow: var(--cx-shadow-soft);
+  color: var(--cx-text);
+}
+.admin-shell .card-header{
+  background: var(--cx-surface-2);
+  border-bottom-color: var(--cx-border);
+}
+
+/* KPI pastel */
+.admin-shell .kpi{
+  border-radius: 18px;
+  border: 1px solid var(--cx-border);
+  padding: 18px;
+  box-shadow: var(--cx-shadow-soft);
+}
+.admin-shell .kpi--sun  { background: var(--kpi-sun); }
+.admin-shell .kpi--mint { background: var(--kpi-mint); }
+.admin-shell .kpi--rose { background: var(--kpi-rose); }
+.admin-shell .kpi--lav  { background: var(--kpi-lav);  }
+.admin-shell .kpi .kpi-title{
+  color: var(--cx-muted);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.admin-shell .kpi .kpi-value{
+  font-size: clamp(1.6rem, 2.2vw, 2rem);
+  font-weight: 800;
+  color: var(--cx-text);
+}
+
+/* =========================================================
+   NAV / TABS / PILLS
+   ========================================================= */
+.admin-shell .nav-link{
+  color: var(--cx-text);
+  opacity: .9;
+  transition: color .15s ease, opacity .15s ease, background .15s ease;
+}
+.admin-shell .nav-link:hover{
+  color: var(--cx-primary);
+  opacity: 1;
+}
+.admin-shell .nav-pills .nav-link.active,
+.admin-shell .nav-pills .show>.nav-link{
+  color: #fff;
+  background-color: var(--cx-primary);
+  border-color: var(--cx-primary);
+}
+.admin-shell .nav-tabs .nav-link{
+  border-color: transparent;
+  color: var(--cx-text);
+}
+.admin-shell .nav-tabs .nav-link:hover{
+  border-color: var(--cx-border);
+  color: var(--cx-primary);
+}
+.admin-shell .nav-tabs .nav-link.active{
+  color: var(--cx-primary);
+  background: #fff;
+  border-color: var(--cx-border);
+}
+
+/* =========================================================
+   TABLAS
+   ========================================================= */
+.admin-shell .table{
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--cx-text);
+  --bs-table-border-color: var(--cx-border-2);
+  margin-bottom: 0;
+}
+.admin-shell .table thead th{
+  color: var(--cx-muted);
+  font-weight: 600;
+  border-bottom-color: var(--cx-border);
+}
+.admin-shell .table tbody tr:hover{
+  background: #f8fafc;
+}
+
+/* =========================================================
+   BOTONES
+   ========================================================= */
+.admin-shell .btn{ border-radius: 10px; }
+.admin-shell .btn-primary{
+  background: var(--cx-primary);
+  border-color: var(--cx-primary-2);
+}
+.admin-shell .btn-primary:hover{
+  background: var(--cx-primary-2);
+  border-color: var(--cx-primary-2);
+}
+.admin-shell .btn-outline-secondary{
+  color: var(--cx-text);
+  border-color: var(--cx-border-2);
+  background: #fff;
+}
+.admin-shell .btn-outline-secondary:hover{
+  background: #eef2ff;
+  border-color: var(--cx-primary);
+  color: var(--cx-primary);
+}
+
+/* =========================================================
+   FORMULARIOS
+   ========================================================= */
+.admin-shell .form-control,
+.admin-shell .form-select{
+  background: #fff;
+  border-color: var(--cx-border);
+  color: var(--cx-text);
+  border-radius: 10px;
+}
+.admin-shell .form-control::placeholder{ color: #94a3b8; }
+.admin-shell .form-control:focus,
+.admin-shell .form-select:focus{
+  box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .18);
+  border-color: var(--cx-primary);
+}
+
+/* =========================================================
+   DROPDOWNS
+   ========================================================= */
+.admin-shell .dropdown-menu{
+  background: #fff;
+  border: 1px solid var(--cx-border);
+  border-radius: 12px;
+  box-shadow: var(--cx-shadow);
+}
+.admin-shell .dropdown-item{ color: var(--cx-text); border-radius: 8px; }
+.admin-shell .dropdown-item:hover{ background: #eef2ff; }
+
+/* =========================================================
+   SCROLLBAR (sólo admin)
+   ========================================================= */
+.admin-shell *::-webkit-scrollbar{ width: 10px; height: 10px; }
+.admin-shell *::-webkit-scrollbar-thumb{
+  background: linear-gradient(180deg, #93c5fd, #60a5fa);
+  border-radius: 999px;
+}
+.admin-shell *::-webkit-scrollbar-track{
+  background: #e5e7eb;
+  border-radius: 999px;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 991.98px){
+  .admin-shell .admin-grid{ grid-template-columns: 1fr; }
+  .admin-shell .admin-sidebar{ position: static; }
+  .admin-shell .admin-sidebar .list-group{ display: none; }
+  .admin-shell .admin-sidebar.open .list-group{ display: block; }
+}
+@media (max-width: 576px){
+  .admin-shell .admin-main{ padding: 1rem !important; }
+}
+
+/* =========================================================
+   FIX DE LEGIBILIDAD (neutraliza clases del tema oscuro)
+   ========================================================= */
+.admin-shell .text-light,
+.admin-shell .text-white    { color: var(--cx-text) !important; }
+.admin-shell .text-muted    { color: var(--cx-muted) !important; }
+.admin-shell .border-light  { border-color: var(--cx-border) !important; }
+.admin-shell .bg-dark       { background: var(--cx-surface) !important; }
+.admin-shell .navbar-dark   { background: var(--cx-surface) !important; color: var(--cx-text) !important; }
+.admin-shell .card.bg-dark  { background: var(--cx-surface) !important; }
+.admin-shell .table-dark    { --bs-table-bg: #fff; --bs-table-color: var(--cx-text); }
+
+/* Enlaces de texto dentro del main */
+.admin-shell a:not(.btn):not(.dropdown-item):not(.nav-link){
+  color: var(--cx-primary);
+  text-decoration: none;
+}
+.admin-shell a:not(.btn):not(.dropdown-item):not(.nav-link):hover{
+  text-decoration: underline;
+}
+
+/* Sidebar contraste extra para items inactivos */
+.admin-shell .admin-sidebar .list-group-item { color: var(--cx-side-text); }
+

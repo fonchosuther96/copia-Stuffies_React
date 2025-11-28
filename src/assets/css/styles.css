@@ -1,0 +1,497 @@
+/* ================================
+   RESET + VARIABLES
+================================ */
+:root{
+  --primary-color:#ffffff;        /* texto principal */
+  --secondary-color:#ffffff;      /* botones claros por defecto */
+  --accent-color:#6f42c1;         /* morado elegante */
+  --light-color:#0d0d0d;          /* gris muy oscuro */
+  --dark-color:#000000;           /* fondo principal */
+  --gray-color:#bfbfbf;
+  --success-color:#28a745;
+  --warning-color:#ffc107;
+  --danger-color:#dc3545;
+  --font-main:'Libre Baskerville','Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+  --shadow:0 4px 6px rgba(0,0,0,.25);
+  --transition:all .3s ease;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background-color:var(--dark-color);
+  color:var(--primary-color);
+  font-family:var(--font-main);
+}
+
+/* ================================
+   HEADER (gris claro con letras negras)
+================================ */
+header{
+  background:#dcdcdc;
+  color:#000;
+  border-bottom:2px solid #bbb;
+  padding:.7rem 0;
+  position:sticky;
+  top:0;
+  z-index:100;
+}
+header .container{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+header a{color:#000 !important;text-decoration:none;font-weight:500;}
+header a:hover{color:#333 !important;}
+header h1 a{color:#000;}
+
+.logo-gif{
+  height:40px;
+  display:block;
+  border:none !important;
+  outline:none !important;
+  background:transparent !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+
+/* avatar */
+.avatar-img{
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  object-fit:cover;
+  border:2px solid #000;
+}
+
+/* ================================
+   HOME — HERO (con tu imagen)
+================================ */
+.hero{
+  min-height:60vh;
+  background:#111 url("https://i.postimg.cc/Dz8pthBy/448330999-1571729430349986-3007445543010160619-n.jpg") center/cover no-repeat;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  text-align:center;
+}
+.hero .hero-content{padding:4rem 0;}
+.hero h2{font-weight:700;font-size:2.5rem;color:#fff;}
+.hero p{font-size:1.1rem;color:#ddd;}
+.hero .btn{
+  background:#fff;color:#000;border:none;padding:.8rem 1.5rem;border-radius:25px;transition:var(--transition);
+}
+.hero .btn:hover{background:#ccc;color:#000;}
+
+/* ================================
+   LANDING FULLSCREEN (reemplaza a fondo.css .hero)
+   Usa className="landing-hero"
+================================ */
+.landing-hero{
+  position:relative;height:100vh;width:100%;
+  background:url("https://i.postimg.cc/ZRJmDW8M/AQO8ai-RXoga41z-C0-ZC4-N-US9-TBe-Cszq-Lmv-K2-Jz-Mk-Kvm-CXbx-Pvka-P06-Nej-SV6b4d8-JUj-Az-Ez67pq8-ASTRHVp1l-CKBf4-Pdvv-Pa-Y-td.gif") no-repeat center/cover;
+  display:flex;justify-content:center;align-items:center;color:#fff;text-align:center;
+}
+.landing-hero .overlay{position:absolute;inset:0;background:rgba(0,0,0,.4);}
+.landing-hero .content{position:relative;z-index:1;padding:20px;}
+.landing-hero .logo{max-width:115px;filter:drop-shadow(0 0 10px rgba(0,0,0,.6));}
+.logo-container{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px;}
+.brand-name{font-size:clamp(32px,7vw,70px);font-weight:bold;text-shadow:0 0 8px rgba(0,0,0,.6);}
+.btn-container{display:flex;justify-content:center;gap:20px;flex-wrap:wrap;}
+.btn{padding:12px 24px;border:none;border-radius:25px;font-weight:700;cursor:pointer;transition:var(--transition);display:inline-block;}
+.btn-home,.btn-productos{background:#000;border:2px solid #fff;color:#fff;box-shadow:0 0 8px rgba(255,255,255,.2);}
+.btn:hover{transform:scale(1.1) translateY(-4px);box-shadow:0 0 15px rgba(255,255,255,.6);}
+.btn:active{transform:scale(.98) translateY(1px);}
+
+/* ================================
+   CARRUSEL
+================================ */
+.carousel-section{background:#0d0d0d;padding:3rem 0;}
+#stuffiesCarousel .carousel-inner{border-radius:10px;overflow:hidden;box-shadow:var(--shadow);}
+#stuffiesCarousel .carousel-item img{height:400px;object-fit:cover;transition:transform .5s ease;}
+#stuffiesCarousel .carousel-item:hover img{transform:scale(1.05);}
+#stuffiesCarousel .carousel-caption{background:rgba(0,0,0,.5);padding:1rem 2rem;border-radius:8px;}
+.carousel-item img{border-radius:1rem;opacity:.9;}
+.carousel-caption h5{color:#fff;text-shadow:0 0 8px rgba(255,255,255,.5);}
+.carousel-caption p{color:#ccc;}
+
+/* ================================
+   TARJETAS / PRODUCTOS
+================================ */
+.featured-products{background:#000;color:#fff;padding:4rem 0 3rem;}
+.card{background:#111;color:#fff;border:1px solid #222;border-radius:.8rem;transition:transform .2s ease,box-shadow .2s ease;}
+.card:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,0,0,.3);}
+.card .ratio{background:#eee;} /* zona imagen clara */
+.card .fw-semibold{color:#fff;}
+.card .btn-outline-dark{border-color:#fff;color:#fff;}
+.card .btn-outline-dark:hover{background:#fff;color:#000;}
+.card .btn-primary{background:#fff;color:#000;border:none;}
+.card .btn-primary:hover{background:#ccc;}
+.products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2rem;}
+
+/* ================================
+   ABOUT
+================================ */
+.about-preview{background:#0d0d0d;color:#fff;padding:4rem 0;}
+.about-preview h2{color:#fff;}
+.about-preview p{color:#ccc;}
+
+/* ================================
+   BLOGS
+================================ */
+.blog-card{
+  background:#fff;color:#000;border-radius:12px;overflow:hidden;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);transition:transform .3s ease;
+}
+.blog-card:hover{transform:translateY(-4px);}
+.carousel-section img{max-height:500px;object-fit:cover;}
+
+/* ================================
+   LOGIN
+================================ */
+.login-main{min-height:70vh;display:flex;align-items:center;padding:3rem 0;background:#000;}
+.login-container{max-width:400px;margin:2rem auto;padding:2rem;background:#fff;border-radius:8px;box-shadow:var(--shadow);}
+.login-header{text-align:center;margin-bottom:2rem;}
+.login-header h2{color:#000;font-weight:700;margin-bottom:.5rem;font-size:2rem;}
+.login-header p{color:#555;font-size:1.1rem;}
+.login-form .form-group{margin-bottom:1.5rem;}
+.login-form label{display:block;margin-bottom:.5rem;font-weight:500;color:#000;}
+.login-form input{width:100%;padding:.75rem;border:1px solid #ddd;border-radius:4px;font-family:inherit;transition:var(--transition);}
+.login-form input:focus{outline:none;border-color:var(--accent-color);box-shadow:0 0 0 .2rem rgba(111,66,193,.25);}
+.form-options{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;}
+.remember-me{display:flex;align-items:center;cursor:pointer;}
+.remember-me input{width:auto;margin-right:.5rem;}
+.forgot-password{color:#6f42c1;text-decoration:none;font-size:.9rem;transition:var(--transition);}
+.forgot-password:hover{color:#000;text-decoration:underline;}
+.btn-login{width:100%;padding:.75rem;background:#6f42c1;color:#fff;border:none;border-radius:4px;font-size:1rem;font-weight:500;cursor:pointer;transition:var(--transition);font-family:inherit;}
+.btn-login:hover{background:#000;}
+
+/* ================================
+   GENERALES / FORM
+================================ */
+.form-container{max-width:500px;margin:2rem auto;padding:2rem;background:#fff;border-radius:8px;box-shadow:var(--shadow);}
+.form-title{text-align:center;margin-bottom:2rem;color:#000;}
+.form-group{margin-bottom:1.5rem;}
+.form-group label{display:block;margin-bottom:.5rem;font-weight:500;}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:.75rem;border:1px solid #ddd;border-radius:4px;font-family:inherit;}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{outline:none;border-color:var(--accent-color);}
+
+/* ================================
+   FOOTER
+================================ */
+footer{
+  background:#000;color:#ccc;padding:3rem 0 1rem;border-top:1px solid #222;
+}
+.footer-content{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:2rem;margin-bottom:2rem;}
+.footer-section h3,.footer-section h4{margin-bottom:1rem;color:#fff;}
+.footer-section ul{list-style:none;}
+.footer-section li{margin-bottom:.5rem;}
+.footer-section a{color:#fff;text-decoration:none;transition:var(--transition);}
+.footer-section a:hover{color:#ddd;}
+.subscribe-form{display:flex;margin-top:1rem;}
+.subscribe-form input{flex:1;padding:.5rem;border:none;border-radius:4px 0 0 4px;}
+.subscribe-form button{background:#fff;color:#000;border:none;padding:.5rem 1rem;border-radius:0 4px 4px 0;cursor:pointer;}
+.footer-bottom{text-align:center;padding-top:2rem;border-top:1px solid rgba(255,255,255,.1);color:#999;}
+
+/* ================================
+   RESPONSIVE
+================================ */
+@media (max-width:768px){
+  header .container{flex-direction:column;gap:.5rem;}
+  .hero .hero-content{padding:3rem 0;}
+  .blog-card:hover{transform:none;}
+}
+
+/* === PRODUCTOS (fondo negro y texto claro) === */
+.productos-page {
+  background-color: #000;
+  color: #fff;
+  min-height: 100vh;
+  padding-bottom: 3rem;
+}
+.productos-page h2 { color: #fff; }
+.productos-page label { color: #fff; }
+.productos-page select {
+  background-color: #111;
+  color: #fff;
+  border: 1px solid #444;
+}
+.productos-page .form-select:focus {
+  box-shadow: 0 0 0 0.25rem rgba(255,255,255,0.25);
+}
+.productos-page .card { background-color: #111; color: #fff; border: 1px solid #222; }
+.productos-page .btn-primary { background-color: #fff; color: #000; border: none; }
+.productos-page .btn-primary:hover { background-color: #ccc; }
+.featured-products h2 { color: #fff; margin-bottom: 2rem; }
+.featured-products .card { background-color: #111; color: #fff; border: 1px solid #222; }
+.featured-products .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 20px rgba(255,255,255,0.1);
+}
+.featured-products .btn-primary { background-color: #fff; color: #000; }
+.featured-products .btn-primary:hover { background-color: #ccc; color: #000; }
+
+/* === DETALLE DE PRODUCTO (fondo negro y estilo oscuro) === */
+.detalle-page {
+  background-color: #000;        /* Fondo negro del cuerpo del detalle */
+  color: #fff !important;        /* Texto blanco por defecto */
+  min-height: 100vh;             /* Asegura alto mínimo de la pantalla */
+}
+.detalle-page h1,
+.detalle-page h2,
+.detalle-page h3,
+.detalle-page h4,
+.detalle-page h5,
+.detalle-page h6,
+.detalle-page p,
+.detalle-page label,
+.detalle-page span { color: #fff !important; }
+.detalle-page img { border-radius: 8px; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+.detalle-page .form-select { background-color: #111; color: #fff; border: 1px solid #333; }
+.detalle-page .form-select:focus { box-shadow: 0 0 0 0.2rem rgba(255,255,255,0.25); border-color: #555; }
+.detalle-page .badge.bg-secondary { background-color: #444 !important; color: #fff; }
+.detalle-page .btn-primary { background-color: #fff; color: #000; border: none; }
+.detalle-page .btn-primary:hover { background-color: #ccc; color: #000; }
+.detalle-page .btn-outline-light { border: 1px solid #fff; color: #fff; }
+.detalle-page .btn-outline-light:hover { background-color: #fff; color: #000; }
+.detalle-page .text-secondary{ color:#ddd !important; }
+
+/* === FOOTER OSCURO === */
+.footer-dark { background-color: #000; color: #fff; }
+.footer-dark h3,
+.footer-dark h5,
+.footer-dark p,
+.footer-dark a,
+.footer-dark small { color: #fff !important; }
+.footer-dark a:hover { color: #ccc !important; }
+.footer-logo { width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 0 6px rgba(255,255,255,0.4)); }
+.footer-input { background-color: #111; border: 1px solid #333; color: #fff; }
+.footer-input::placeholder { color: #aaa; }
+.footer-input:focus { border-color: #555; box-shadow: 0 0 0 0.2rem rgba(255,255,255,0.2); }
+.footer-btn { background-color: #fff; color: #000; font-weight: 600; border: none; transition: all 0.3s ease; }
+.footer-btn:hover { background-color: #ccc; color: #000; }
+.footer-bottom { border-top: 1px solid #222; margin-top: 1.5rem; padding-top: 1rem; text-align: center; }
+
+/* ===== Admin theme ===== */
+.admin-shell { min-height: 100vh; display:flex; flex-direction:column; background:#0b0b0b; }
+.admin-body  { flex:1; }
+.admin-grid  { display:grid; grid-template-columns: 260px 1fr; gap:16px; }
+.admin-main  { border-radius:12px; }
+.admin-sidebar { position: sticky; top: 12px; height: fit-content; }
+@media (max-width: 992px) {
+  .admin-grid { grid-template-columns: 1fr; }
+  .admin-sidebar { position: static; }
+}
+.dropdown-menu { z-index: 2000; }
+
+/* =========================================================
+   OVERRIDES — PÁGINAS OSCURAS (Nosotros / Blogs / Contacto)
+========================================================= */
+main:has(.cardx),          /* Nosotros */
+main:has(.blogs-list),     /* Blogs */
+main:has(#formContacto) {  /* Contacto */
+  background:#000 !important;
+  color:#fff !important;
+}
+
+/* Quitar fondos blancos internos */
+main:has(.cardx) .container,
+main:has(.blogs-list) .container,
+main:has(#formContacto) .container,
+main:has(.cardx) section,
+main:has(.blogs-list) section,
+main:has(#formContacto) section{
+  background:transparent !important;
+}
+
+/* --- HERO de NOSOTROS --- */
+main:has(.cardx) .hero{
+  position:relative !important;
+  background:
+    linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)),
+    url("https://i.postimg.cc/Dz8pthBy/448330999-1571729430349986-3007445543010160619-n.jpg")
+    center/cover no-repeat !important;
+}
+
+/* --- HERO de BLOGS --- */
+main:has(.blogs-list) .hero{
+  position:relative !important;
+  background:
+    linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)),
+    url("https://i.postimg.cc/Dz8pthBy/448330999-1571729430349986-3007445543010160619-n.jpg")
+    center/cover no-repeat !important;
+}
+
+/* --- HERO de CONTACTO --- */
+main:has(#formContacto) .hero{
+  position:relative !important;
+  background:
+    linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,.55)),
+    url("https://i.postimg.cc/PxD35Mgg/DADOS.png")
+    center/cover no-repeat !important;
+}
+
+/* Tarjeta genérica que usas en Nosotros/Contacto */
+.cardx{
+  background:#111 !important;
+  color:#fff !important;
+  border:1px solid #222 !important;
+  border-radius:12px !important;
+  padding:1.5rem !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.45) !important;
+}
+
+/* BLOGS: cards y badges en oscuro */
+main:has(.blogs-list) .blog-card{
+  background:#111 !important;
+  color:#fff !important;
+  border:1px solid #222 !important;
+  box-shadow:0 6px 16px rgba(0,0,0,.5) !important;
+}
+main:has(.blogs-list) .blog-card .badge{
+  background:#333 !important;
+  color:#fff !important;
+  border:1px solid #444 !important;
+}
+
+/* CONTACTO: inputs/selects/textarea en oscuro */
+main:has(#formContacto) .form-control,
+main:has(#formContacto) .form-select,
+main:has(#formContacto) input,
+main:has(#formContacto) textarea,
+main:has(#formContacto) select{
+  background:#111 !important;
+  color:#fff !important;
+  border:1px solid #333 !important;
+}
+main:has(#formContacto) .form-control::placeholder,
+main:has(#formContacto) textarea::placeholder{ color:#aaa !important; }
+main:has(#formContacto) .form-control:focus,
+main:has(#formContacto) .form-select:focus{
+  border-color:#555 !important;
+  box-shadow:0 0 0 .2rem rgba(255,255,255,.15) !important;
+}
+
+/* Botones outline en oscuro */
+main:has(.cardx) .btn-outline-dark,
+main:has(#formContacto) .btn-outline-dark{
+  border-color:#fff !important;
+  color:#fff !important;
+}
+main:has(.cardx) .btn-outline-dark:hover,
+main:has(#formContacto) .btn-outline-dark:hover{
+  background:#fff !important;
+  color:#000 !important;
+}
+
+/* Títulos y textos */
+main:has(.cardx) h1, main:has(.cardx) h2, main:has(.cardx) h3,
+main:has(.blogs-list) h1, main:has(.blogs-list) h2, main:has(.blogs-list) h3,
+main:has(#formContacto) h1, main:has(#formContacto) h2, main:has(#formContacto) h3{
+  color:#fff !important;
+}
+main:has(.blogs-list) p,
+main:has(.cardx) p,
+main:has(#formContacto) p{ color:#ddd !important; }
+
+/* =========================================================
+   MEJORA — BOTONES DEL FONDO ANIMADO (landing-hero)
+========================================================= */
+.landing-hero .btn-home,
+.landing-hero .btn-productos{
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #000 !important;
+  border: 2px solid #fff !important;
+  font-weight: 800 !important;
+  font-size: 1.2rem !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase;
+  padding: 14px 36px !important;
+  border-radius: 50px !important;
+  box-shadow:
+    0 0 25px rgba(255, 255, 255, 0.8),
+    0 0 40px rgba(255, 255, 255, 0.5),
+    inset 0 0 8px rgba(255, 255, 255, 0.6);
+  transition: all 0.25s ease !important;
+}
+.landing-hero .btn-home:hover,
+.landing-hero .btn-productos:hover{
+  transform: scale(1.08);
+  box-shadow:
+    0 0 35px rgba(255, 255, 255, 1),
+    0 0 60px rgba(255, 255, 255, 0.7),
+    inset 0 0 12px rgba(255, 255, 255, 0.9);
+  background: #fff !important;
+  color: #000 !important;
+}
+.landing-hero .btn-container {
+  z-index: 5;
+  position: relative;
+}
+
+.product-card img { transition: transform .35s ease, opacity .35s ease; }
+.product-card:hover img { transform: scale(1.05); opacity: .92; }
+
+
+.mm-lock {
+  overflow: hidden;
+}
+
+
+.mdraw-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  backdrop-filter: blur(1px);
+  z-index: 1040;
+  animation: fadeIn .15s ease-out;
+}
+
+
+.mdraw-panel {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;               
+  width: min(80vw, 320px);
+  background: #fff;
+  padding: 16px;
+  z-index: 1050;
+  box-shadow: 0 0 24px rgba(0,0,0,.2);
+  transform: translateX(-100%);
+  animation: slideIn .18s ease-out forwards;
+  overflow-y: auto;
+}
+
+
+.mdraw-link {
+  display: block;
+  padding: 10px 8px;
+  border-radius: .5rem;
+  text-decoration: none;
+  color: #212529;
+  font-weight: 500;
+}
+.mdraw-link.active,
+.mdraw-link:hover {
+  background: #f1f3f5;
+}
+
+@keyframes slideIn {
+  to { transform: translateX(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+
+header .badge {
+  font-size: .65rem;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 6px;
+}
+

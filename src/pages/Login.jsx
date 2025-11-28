@@ -1,16 +1,16 @@
 // src/pages/Login.jsx
-import { useEffect, useState } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-const USERS_KEY = "stuffies_users";
-const SESSION_KEY = "stuffies_session";
+import api from "../api";
+import { AuthContext } from "../context/AuthContext.jsx";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(""); // usuario o correo
   const [pass, setPass] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(false); // puedes usarlo después si quieres
   const [msg, setMsg] = useState({ type: "", text: "", show: false });
 
   // === Estado de errores para inputs ===
@@ -52,42 +52,12 @@ export default function Login() {
     return e; // {} si no hay errores
   };
 
-  // Crear usuario admin por defecto (igual que en tu HTML)
-  useEffect(() => {
-    try {
-      const users = JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-      const exists = users.find(
-        (u) => (u.user || "").toLowerCase() === "adminstuffies"
-      );
-      if (!exists) {
-        users.push({
-          name: "Administrador Stuffies",
-          email: "adminstuffies@duoc.cl",
-          user: "adminstuffies",
-          pass: "1234",
-          role: "admin",
-          avatar:
-            "https://i.postimg.cc/qRdn8fDv/LOGO-ESTRELLA-SIMPLE-CON-ESTRELLITAS.png",
-        });
-        localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      }
-    } catch {}
-  }, []);
-
-  const getUsers = () => {
-    try {
-      return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  };
-
   const showMsg = (type, text) => setMsg({ type, text, show: true });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 1) Validación de campos
+    // 1) Validación de campos (igual que antes)
     const fieldErrors = validarTodo({ email, pass });
     setErrors(fieldErrors);
     if (Object.keys(fieldErrors).length) {
@@ -95,45 +65,37 @@ export default function Login() {
       return;
     }
 
-    // 2) Autenticación
-    const id = email.trim().toLowerCase();
-    const users = getUsers();
-    const found = users.find(
-      (u) =>
-        (u.user && u.user.toLowerCase() === id) ||
-        (u.email && u.email.toLowerCase() === id)
-    );
+    // 2) Autenticación contra la API (ya NO usamos localStorage de usuarios)
+    try {
+      // Importante: aquí asumimos que el backend espera "username" y "password".
+      // En "username" le mandamos lo que tú llamas "email", que puede ser usuario o correo.
+      const res = await api.post("/auth/login", {
+        username: email,
+        password: pass,
+      });
 
-    if (!found || found.pass !== pass) {
+      // res.data debería ser { token, username, roles }
+      login(res.data); // guarda token/username/roles en AuthContext + localStorage
+
+      // Procesamos roles para saber si es admin
+      const rolesRaw = res.data.roles || [];
+      const roles = rolesRaw.map((r) =>
+        typeof r === "string" ? r : r.authority
+      );
+      const isAdmin = roles.includes("ROLE_ADMIN");
+
+      // Mensaje y redirección según rol
+      if (isAdmin) {
+        showMsg("success", "¡Bienvenido/a admin! Redirigiendo al panel…");
+        setTimeout(() => navigate("/admin", { replace: true }), 500);
+      } else {
+        const nombre = res.data.username || email;
+        showMsg("success", `¡Bienvenido/a, ${nombre}! Redirigiendo…`);
+        setTimeout(() => navigate("/", { replace: true }), 500);
+      }
+    } catch (err) {
+      console.error(err);
       showMsg("danger", "Credenciales inválidas. Revisa tus datos.");
-      return;
-    }
-
-    const avatar =
-      found.avatar ||
-      "https://i.postimg.cc/qRdn8fDv/LOGO-ESTRELLA-SIMPLE-CON-ESTRELLITAS.png";
-
-    localStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({
-        user: found.user,
-        name: found.name,
-        email: found.email,
-        avatar,
-        role: found.role || "cliente",
-        remember: !!remember,
-      })
-    );
-
-    // Avisar a Header/otras pestañas que cambió la sesión
-    window.dispatchEvent(new Event("session:updated"));
-
-    if (found.role === "admin") {
-      showMsg("success", "¡Bienvenido/a admin! Redirigiendo al panel…");
-      setTimeout(() => navigate("/admin"), 500);
-    } else {
-      showMsg("success", `¡Bienvenido/a, ${found.name || found.user}! Redirigiendo…`);
-      setTimeout(() => navigate("/"), 500);
     }
   };
 
@@ -176,7 +138,9 @@ export default function Login() {
               <div className="card-body p-4 p-md-5">
                 <div className="text-center mb-4">
                   <h2 className="mb-1">Iniciar Sesión</h2>
-                  <p className="text-muted m-0">Ingresa a tu cuenta de STUFFIES</p>
+                  <p className="text-muted m-0">
+                    Ingresa a tu cuenta de STUFFIES
+                  </p>
                 </div>
 
                 <form id="loginForm" noValidate onSubmit={handleSubmit}>
@@ -194,7 +158,6 @@ export default function Login() {
                       value={email}
                       onChange={(e) => onChangeEmail(e.target.value)}
                     />
-                    {/* reemplazo por mensaje dinámico; dejo fallback invisible para no mover layout */}
                     <Msg
                       name="email"
                       fallback="Ingresa tu usuario o correo."

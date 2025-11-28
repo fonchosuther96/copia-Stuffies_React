@@ -1,8 +1,9 @@
 // src/components/Header.jsx
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { getCartTotals } from "../services/cart.js";
+import { AuthContext } from "../context/AuthContext.jsx";
 
 function MobileDrawer({ open, onClose, session, cartCount, onLogout, navigate }) {
   // Monta el portal en body para evitar stacking context
@@ -46,7 +47,7 @@ function MobileDrawer({ open, onClose, session, cartCount, onLogout, navigate })
           {session ? (
             <>
               <img
-                src={session.avatar || "https://i.postimg.cc/qRdn8fDv/LOGO-ESTRELLA-SIMPLE-CON-ESTRELLITAS.png"}
+                src={session.avatar}
                 alt="Usuario"
                 className="rounded-circle border"
                 style={{ width: 36, height: 36, objectFit: "cover" }}
@@ -111,16 +112,26 @@ function MobileDrawer({ open, onClose, session, cartCount, onLogout, navigate })
 
 export default function Header() {
   const navigate = useNavigate();
+  const { user, logout } = useContext(AuthContext);
 
-  const readSession = useCallback(() => {
-    try {
-      return JSON.parse(localStorage.getItem("stuffies_session") || "null");
-    } catch {
-      return null;
-    }
-  }, []);
+  // Derivamos un "session" con la forma que usabas antes, a partir de AuthContext.user
+  const session = useMemo(() => {
+    if (!user) return null;
 
-  const [session, setSession] = useState(() => readSession());
+    const roles = user.roles?.map((r) =>
+      typeof r === "string" ? r : r.authority
+    ) || [];
+    const isAdmin = roles.includes("ROLE_ADMIN");
+
+    return {
+      user: user.username || "usuario",
+      name: user.username || "usuario",
+      role: isAdmin ? "admin" : "cliente",
+      avatar:
+        "https://i.postimg.cc/qRdn8fDv/LOGO-ESTRELLA-SIMPLE-CON-ESTRELLITAS.png",
+    };
+  }, [user]);
+
   const [cartCount, setCartCount] = useState(() => getCartTotals().cantidad || 0);
 
   // Dropdown escritorio
@@ -130,27 +141,20 @@ export default function Header() {
   // Drawer móvil
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Mantener sesión y carrito sincronizados
+  // Mantener carrito sincronizado (sesión ya la maneja AuthContext)
   useEffect(() => {
-    const refreshSession = () => setSession(readSession());
     const refreshCart = () => setCartCount(getCartTotals().cantidad || 0);
 
-    window.addEventListener("storage", refreshSession);
     window.addEventListener("storage", refreshCart);
-    window.addEventListener("focus", refreshSession);
     window.addEventListener("focus", refreshCart);
-    window.addEventListener("session:updated", refreshSession);
     window.addEventListener("cart:updated", refreshCart);
 
     return () => {
-      window.removeEventListener("storage", refreshSession);
       window.removeEventListener("storage", refreshCart);
-      window.removeEventListener("focus", refreshSession);
       window.removeEventListener("focus", refreshCart);
-      window.removeEventListener("session:updated", refreshSession);
       window.removeEventListener("cart:updated", refreshCart);
     };
-  }, [readSession]);
+  }, []);
 
   // Cierra el menú (escritorio) al hacer click fuera o presionar ESC
   useEffect(() => {
@@ -173,9 +177,7 @@ export default function Header() {
   }, []);
 
   const onLogout = () => {
-    localStorage.removeItem("stuffies_session");
-    setSession(null);
-    window.dispatchEvent(new Event("session:updated"));
+    logout(); // 👈 ahora usamos el contexto, no localStorage manual
     setMenuOpen(false);
     setDrawerOpen(false);
     navigate("/login");
@@ -236,7 +238,9 @@ export default function Header() {
 
             {/* Avatar / Login */}
             {!session ? (
-              <Link to="/login" className="btn btn-outline-primary d-none d-md-inline-flex">Iniciar Sesión</Link>
+              <Link to="/login" className="btn btn-outline-primary d-none d-md-inline-flex">
+                Iniciar Sesión
+              </Link>
             ) : (
               <div className="d-none d-md-flex align-items-center gap-2 position-relative" ref={menuRef}>
                 <button
@@ -248,10 +252,7 @@ export default function Header() {
                   title="Cuenta"
                 >
                   <img
-                    src={
-                      session.avatar ||
-                      "https://i.postimg.cc/qRdn8fDv/LOGO-ESTRELLA-SIMPLE-CON-ESTRELLITAS.png"
-                    }
+                    src={session.avatar}
                     alt="Usuario"
                     className="avatar-img rounded-circle shadow-sm border"
                     style={{ width: 38, height: 38, objectFit: "cover" }}
@@ -320,3 +321,55 @@ export default function Header() {
     </>
   );
 }
+const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // 1) Validación de campos
+    const fieldErrors = validarTodo({ email, pass });
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length) {
+      showMsg("danger", "Revisa los campos marcados en rojo.");
+      return;
+    }
+
+    // 🔹 MODO DEMO TEMPORAL (quítalo cuando el backend esté listo)
+    if (email.trim().toLowerCase() === "adminstuffies" && pass === "1234") {
+      const fakeData = {
+        token: "FAKE_TOKEN_DEMO",
+        username: "adminstuffies",
+        roles: ["ROLE_ADMIN"],
+      };
+      login(fakeData);
+      showMsg("success", "¡Bienvenido/a admin! Redirigiendo al panel…");
+      setTimeout(() => navigate("/admin", { replace: true }), 500);
+      return;
+    }
+
+    // 2) Autenticación contra la API real
+    try {
+      const res = await api.post("/auth/login", {
+        username: email,
+        password: pass,
+      });
+
+      login(res.data);
+
+      const rolesRaw = res.data.roles || [];
+      const roles = rolesRaw.map((r) =>
+        typeof r === "string" ? r : r.authority
+      );
+      const isAdmin = roles.includes("ROLE_ADMIN");
+
+      if (isAdmin) {
+        showMsg("success", "¡Bienvenido/a admin! Redirigiendo al panel…");
+        setTimeout(() => navigate("/admin", { replace: true }), 500);
+      } else {
+        const nombre = res.data.username || email;
+        showMsg("success", `¡Bienvenido/a, ${nombre}! Redirigiendo…`);
+        setTimeout(() => navigate("/", { replace: true }), 500);
+      }
+    } catch (err) {
+      console.error(err);
+      showMsg("danger", "Credenciales inválidas. Revisa tus datos.");
+    }
+  };

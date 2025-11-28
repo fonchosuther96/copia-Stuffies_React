@@ -1,6 +1,7 @@
-// src/routes/admin.jsx (o .js)
+// src/routes/admin.jsx
 import { Navigate } from "react-router-dom";
 import AdminLayout from "../admin/AdminLayout.jsx";
+import ProtectedRoute from "../components/ProtectedRoute.jsx";
 
 // Dashboard
 import Dashboard from "../admin/pages/Dashboard.jsx";
@@ -14,7 +15,7 @@ import ProductosList from "../admin/pages/ProductosList.jsx";
 import ProductoNuevo from "../admin/pages/ProductoNuevo.jsx";
 import ProductoEditar from "../admin/pages/ProductoEditar.jsx";
 import ProductosCriticos from "../admin/pages/ProductosCriticos.jsx";
-import Reportes from "../admin/pages/Reportes.jsx"; // (reportes globales o de productos)
+import Reportes from "../admin/pages/Reportes.jsx"; // reportes globales o de productos
 
 // Categorías
 import CategoriasList from "../admin/pages/CategoriasList.jsx";
@@ -33,7 +34,12 @@ import Perfil from "../admin/pages/Perfil.jsx";
 export const adminRoutes = [
   {
     path: "/admin",
-    element: <AdminLayout />,
+    // 👇 Aquí protegemos TODO el layout admin
+    element: (
+      <ProtectedRoute roles={["ROLE_ADMIN"]}>
+        <AdminLayout />
+      </ProtectedRoute>
+    ),
     children: [
       // Home / Dashboard
       { index: true, element: <Dashboard /> },
@@ -65,7 +71,7 @@ export const adminRoutes = [
       // Perfil
       { path: "perfil", element: <Perfil /> },
 
-      // Fallback opcional interno de /admin
+      // Fallback opcional
       { path: "*", element: <Navigate to="/admin" replace /> },
     ],
   },

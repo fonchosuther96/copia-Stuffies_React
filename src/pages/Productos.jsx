@@ -1,6 +1,6 @@
 // src/pages/Productos.jsx
 import { useEffect, useMemo, useState } from "react";
-import { getAllLive, getCategories } from "../services/inventory.js";
+import api from "../api"; // 👈 ahora usamos la API REST
 import ProductCard from "../components/ProductCard.jsx";
 
 const CLP = new Intl.NumberFormat("es-CL");
@@ -9,49 +9,88 @@ export default function Productos() {
   const [categoria, setCategoria] = useState("todos");
   const [precioMax, setPrecioMax] = useState(60000);
 
-  const [items, setItems] = useState([]); // productos vivos
-  const [cats, setCats] = useState([]);   // catálogo de categorías
+  const [items, setItems] = useState([]);   // productos desde backend
+  const [error, setError] = useState("");   // para mostrar error si falla la API
+  const [loading, setLoading] = useState(true);
 
-  // Carga inicial + mantenerse sincronizado con cambios globales
+  // Carga inicial desde la API
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    const load = () => {
-      setItems(getAllLive());
-      setCats(getCategories());
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        // 👇 Ajusta la ruta según tu backend (/api/productos, /api/products, etc.)
+        const res = await api.get("/api/products");
+
+        // Si el backend devuelve un array directo:
+        setItems(res.data || []);
+
+        // Si fuera paginado tipo { content: [...] }, sería:
+        // setItems(res.data.content || []);
+      } catch (err) {
+        console.error(err);
+        setError("No se pudieron cargar los productos. Intenta más tarde.");
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
     };
+
     load();
-
-    const onStorage = (e) => {
-      if (e.key === "stuffies_inventory_v1" || e.key === "stuffies_categories_v1") load();
-    };
-    const onUpdated = () => load();
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("inventory:updated", onUpdated);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("inventory:updated", onUpdated);
-    };
   }, []);
 
-  // Opciones de categoría = catálogo ∪ categorías presentes en productos (sin duplicados)
+  // Opciones de categoría = categorías presentes en productos (sin duplicados)
   const categoriaOptions = useMemo(() => {
-    const set = new Set(cats);
+    const set = new Set();
+
     for (const p of items) {
+      // 👇 Ajusta esta lógica según cómo venga la categoría del backend
+      // Ejemplo 1: p.categoria (string simple)
       if (p.categoria) set.add(p.categoria);
+
+      // Ejemplo 2 (alternativo si tu backend manda objeto):
+      // if (p.category && p.category.nombre) set.add(p.category.nombre);
     }
+
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  }, [cats, items]);
+  }, [items]);
 
   // Filtrado por categoría y precio
   const dataFiltrada = useMemo(() => {
     return items.filter((p) => {
-      const okCat = categoria === "todos" ? true : p.categoria === categoria;
-      const okPrecio = Number(p.precio) <= Number(precioMax);
+      // 👇 Ajusta los campos según tu backend
+      const cat = p.categoria; // o p.category?.nombre
+
+      const precio = Number(p.precio); // o p.price si viene como "price"
+
+      const okCat = categoria === "todos" ? true : cat === categoria;
+      const okPrecio = precio <= Number(precioMax);
       return okCat && okPrecio;
     });
   }, [categoria, precioMax, items]);
+
+  if (loading) {
+    return (
+      <main className="productos-page py-5">
+        <div className="container">
+          <p className="text-light">Cargando productos...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="productos-page py-5">
+        <div className="container">
+          <div className="alert alert-danger">{error}</div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="productos-page py-5">

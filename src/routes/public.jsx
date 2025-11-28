@@ -2,6 +2,8 @@
 import { Navigate } from "react-router-dom";
 
 import Layout from "../components/Layout.jsx";
+import ProtectedRoute from "../components/ProtectedRoute.jsx";
+
 import Fondo from "../pages/Fondo.jsx";
 import Home from "../pages/Home.jsx";
 import Productos from "../pages/Productos.jsx";
@@ -23,31 +25,36 @@ export const publicRoutes = [
     path: "/",
     element: <Layout />,
     children: [
-      // Página inicial
+      // Portada
       { index: true, element: <Fondo /> },
 
-      // Catálogo
+      // Rutas principales
       { path: "home", element: <Home /> },
       { path: "productos", element: <Productos /> },
       { path: "detalle-producto/:id", element: <DetalleProducto /> },
       { path: "categorias", element: <Categorias /> },
       { path: "ofertas", element: <Ofertas /> },
 
-      // Flujo de compra
-      { path: "checkout", element: <Checkout /> },
+      // Checkout protegido: solo usuarios autenticados
+      {
+        path: "checkout",
+        element: (
+          <ProtectedRoute>
+            <Checkout />
+          </ProtectedRoute>
+        ),
+      },
+
+      // Resultado de compra
       { path: "exito", element: <Exito /> },
       { path: "fallo", element: <Fallo /> },
 
-      // Rutas antiguas de compra (mantienen compatibilidad)
-      { path: "compra/ok/:id", element: <Exito /> },
-      { path: "compra/error", element: <Fallo /> },
-
-      // Contenido
+      // Contenidos
       { path: "blogs", element: <Blogs /> },
       { path: "nosotros", element: <Nosotros /> },
       { path: "contacto", element: <Contacto /> },
 
-      // Auth / usuario
+      // Auth / Usuario
       { path: "login", element: <Login /> },
       { path: "registro", element: <Registro /> },
       { path: "carrito", element: <Carrito /> },
@@ -55,11 +62,5 @@ export const publicRoutes = [
       // Alias
       { path: "inicio", element: <Navigate to="/home" replace /> },
     ],
-  },
-
-  // Alias directo a la raíz (antes tenías /Fondo)
-  {
-    path: "/Fondo",
-    element: <Navigate to="/" replace />,
   },
 ];

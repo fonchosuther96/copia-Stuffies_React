@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom"
 
 import { publicRoutes } from "./routes/public.jsx";
 import { adminRoutes } from "./routes/admin.jsx";
+import { AuthProvider } from "./context/AuthContext.jsx";
 
 import "./assets/css/styles.css";
 
@@ -14,5 +15,7 @@ const router = createBrowserRouter([
 ]);
 
 createRoot(document.getElementById("root")).render(
-  <RouterProvider router={router} />
+  <AuthProvider>
+    <RouterProvider router={router} />
+  </AuthProvider>
 );

@@ -6,11 +6,28 @@ import { useState, useEffect, useMemo } from "react";
 
 const CLP = new Intl.NumberFormat("es-CL");
 
+// Ruta de imagen por defecto si no se encuentra ninguna
+const FALLBACK_IMG = "/img/placeholder-producto.png";
+
 export default function ProductCard({ product }) {
   const stockTotal = getTotalStock(product.id);
   const sinStock = stockTotal <= 0;
 
-  // === Nuevo: intenta encontrar una imagen "hover" en distintos campos ===
+  // Imagen base (la que se muestra normalmente)
+  const baseImg = useMemo(() => {
+    const p = product || {};
+    return (
+      p.imagen ||
+      p.imageUrl ||
+      (Array.isArray(p.galeria) && p.galeria[0]) ||
+      (Array.isArray(p.imagenes) && p.imagenes[0]) ||
+      p.img ||
+      p.imagen1 ||
+      FALLBACK_IMG
+    );
+  }, [product]);
+
+  // Imagen hover: intenta distintos campos secundarios
   const hoverImg = useMemo(() => {
     const p = product || {};
     return (
@@ -25,10 +42,10 @@ export default function ProductCard({ product }) {
     );
   }, [product]);
 
-  const [img, setImg] = useState(product.imagen);
+  const [img, setImg] = useState(baseImg);
 
   const primeraTalla = (product.tallas && product.tallas[0]) || "Única";
-  const primerColor  = (product.colores && product.colores[0]) || "Único";
+  const primerColor = (product.colores && product.colores[0]) || "Único";
 
   const onAdd = () => {
     if (sinStock) return;
@@ -36,7 +53,7 @@ export default function ProductCard({ product }) {
       id: product.id,
       nombre: product.nombre,
       precio: product.precio,
-      imagen: product.imagen,
+      imagen: baseImg, // usamos la imagen base calculada
       cantidad: 1,
       talla: primeraTalla,
       color: primerColor,
@@ -45,14 +62,14 @@ export default function ProductCard({ product }) {
     alert(`Añadido al carrito. Ítems: ${res.cantidad}`);
   };
 
-  // Reset + precarga del hover cuando cambia el producto
+  // Cuando cambia el producto, resetea imagen y precarga el hover
   useEffect(() => {
-    setImg(product.imagen);
+    setImg(baseImg);
     if (hoverImg) {
       const i = new Image();
       i.src = hoverImg; // precarga
     }
-  }, [product, hoverImg]);
+  }, [baseImg, hoverImg]);
 
   return (
     <div className="card product-card h-100">
@@ -66,10 +83,9 @@ export default function ProductCard({ product }) {
             alt={product.nombre}
             className="card-img-top object-fit-cover"
             style={{ transition: "transform 0.3s ease, opacity 0.3s ease" }}
-            // handlers en la imagen
             onMouseEnter={() => hoverImg && setImg(hoverImg)}
-            onMouseLeave={() => setImg(product.imagen)}
-            onError={() => setImg(product.imagen)} // si falla el hover, vuelve a la base
+            onMouseLeave={() => setImg(baseImg)}
+            onError={() => setImg(FALLBACK_IMG)} // si falla, muestra placeholder
           />
         </Link>
       </div>

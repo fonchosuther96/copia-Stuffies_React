@@ -4,47 +4,70 @@ import { createContext, useState, useEffect } from "react";
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  // user = { username, token, roles }
-
-  // Al montar la app, intenta recuperar sesión desde localStorage
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const username = localStorage.getItem("username");
-    const roles = localStorage.getItem("roles");
-
-    if (token && username && roles) {
-      setUser({
-        token,
-        username,
-        roles: JSON.parse(roles), // se guardan como string
-      });
+  // Estado inicial: intentamos leer la sesión desde localStorage
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("session");
+      if (!raw) return null;               // nada guardado todavía
+      const parsed = JSON.parse(raw);
+      // Validación mínima
+      if (!parsed || typeof parsed !== "object") return null;
+      return parsed;                       // { username, role/roles, token }
+    } catch (err) {
+      console.error("[Auth] Error parseando session desde localStorage", err);
+      return null;
     }
-  }, []);
+  });
 
-  const login = (data) => {
-    // data viene del backend: { token, username, roles }
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("username", data.username);
-    localStorage.setItem("roles", JSON.stringify(data.roles));
-
-    setUser({
-      token: data.token,
-      username: data.username,
-      roles: data.roles,
-    });
+  // Helper para guardar sesión
+  const saveSession = (session) => {
+    try {
+      if (!session) {
+        localStorage.removeItem("session");
+      } else {
+        localStorage.setItem("session", JSON.stringify(session));
+      }
+    } catch (err) {
+      console.error("[Auth] Error guardando session en localStorage", err);
+    }
   };
 
+  // LOGIN: lo usamos desde Login.jsx
+  const login = (data) => {
+    // data debería traer: { token, username, roles } o { token, username, role }
+    let roles = [];
+
+    if (Array.isArray(data.roles)) {
+      roles = data.roles;
+    } else if (data.role) {
+      roles = [data.role];
+    }
+
+    const session = {
+      token: data.token,
+      username: data.username,
+      roles,                      // ← siempre manejamos array de roles
+    };
+
+    setUser(session);
+    saveSession(session);
+  };
+
+  // LOGOUT
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("roles");
     setUser(null);
+    saveSession(null);
+  };
+
+  const value = {
+    user,
+    login,
+    logout,
+    isAuthenticated: !!user,
+    roles: user?.roles || [],
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }

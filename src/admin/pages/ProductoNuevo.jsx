@@ -1,46 +1,62 @@
 // src/admin/pages/ProductoNuevo.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { addProduct, getCategories } from "../../services/inventory.js";
+import api from "../../api"; // 👈 usamos la API REST
 
 export default function ProductoNuevo() {
   const navigate = useNavigate();
 
-  // Estado del formulario (igual que lo tenías)
+  // Estado del formulario
   const [form, setForm] = useState({
     nombre: "",
-    categoria: "poleras",
+    categoria: "",
     precio: "",
     descripcion: "",
     imagen: "",
   });
+
   const [errors, setErrors] = useState({});
   const [ok, setOk] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  //Categorías dinámicas
+  // Categorías dinámicas (ahora desde el backend)
   const [cats, setCats] = useState([]);
+  const [catsLoading, setCatsLoading] = useState(true);
+  const [catsError, setCatsError] = useState("");
 
+  // === Cargar categorías desde /api/products ===
   useEffect(() => {
-    const loadCats = () => {
-      const list = (getCategories() || []).map((c) => String(c).trim()).filter(Boolean);
-      setCats(list);
-      setForm((f) =>
-        list.length && !list.includes(f.categoria) ? { ...f, categoria: list[0] } : f
-      );
-    };
-    loadCats();
+    const loadCats = async () => {
+      try {
+        setCatsLoading(true);
+        setCatsError("");
 
-    // refresco si otra pestaña u otra vista cambia categorías
-    const onStorage = (e) => {
-      if (!e || e.key === null || e.key === "stuffies_categories_v1") loadCats();
+        const res = await api.get("/api/products");
+        const list = (res.data || [])
+          .map((p) => String(p.categoria || "").trim())
+          .filter(Boolean);
+
+        const unique = Array.from(new Set(list)).sort((a, b) =>
+          a.localeCompare(b)
+        );
+
+        setCats(unique);
+
+        // Si el formulario no tiene categoría válida, usar la primera
+        setForm((f) =>
+          unique.length && !unique.includes(f.categoria)
+            ? { ...f, categoria: unique[0] }
+            : f
+        );
+      } catch (err) {
+        console.error(err);
+        setCatsError("No se pudieron cargar las categorías.");
+      } finally {
+        setCatsLoading(false);
+      }
     };
-    const onInventoryUpdated = () => loadCats();
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("inventory:updated", onInventoryUpdated);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("inventory:updated", onInventoryUpdated);
-    };
+
+    loadCats();
   }, []);
 
   // === Validadores simples ===
@@ -74,7 +90,8 @@ export default function ProductoNuevo() {
 
     e.precio = required(draft.precio) || isPrecio(draft.precio);
     e.descripcion =
-      required(draft.descripcion) || len(draft.descripcion, { min: 20, max: 400 });
+      required(draft.descripcion) ||
+      len(draft.descripcion, { min: 20, max: 400 });
     e.imagen = required(draft.imagen) || isUrl(draft.imagen);
 
     Object.keys(e).forEach((k) => e[k] == null && delete e[k]);
@@ -89,22 +106,39 @@ export default function ProductoNuevo() {
     setOk(false);
   };
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     const eAll = validate();
     setErrors(eAll);
     if (Object.keys(eAll).length) return;
 
-    addProduct({
-      nombre: form.nombre,
-      categoria: form.categoria,
-      precio: form.precio,
-      descripcion: form.descripcion,
-      imagen: form.imagen,
-    });
+    try {
+      setSaving(true);
 
-    setOk(true);
-    setTimeout(() => navigate("../productos"), 600);
+      // Mapeamos al modelo que espera el backend
+      // Tu entidad tiene campos: nombre, categoria, precio, descripcion, imageUrl, stock, tallas, activo
+      await api.post("/api/products", {
+        nombre: form.nombre.trim(),
+        categoria: form.categoria.trim(),
+        precio: Number(form.precio),
+        descripcion: form.descripcion.trim(),
+        imageUrl: form.imagen.trim(), // 👈 backend usa imageUrl (o lo mapea a image_url)
+        stock: 0,                      // podrías agregar campo en el form si quieres
+        tallas: "",                    // por ahora vacío
+        activo: true,
+      });
+
+      setOk(true);
+      setTimeout(() => navigate("../productos"), 600);
+    } catch (err) {
+      console.error(err);
+      setErrors((prev) => ({
+        ...prev,
+        _global: "No se pudo guardar el producto. Intenta nuevamente.",
+      }));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const cls = (k) => `form-control ${errors[k] ? "is-invalid" : ""}`;
@@ -123,8 +157,16 @@ export default function ProductoNuevo() {
         <div className="card-body">
           <form noValidate onSubmit={onSubmit}>
             <div className="row g-3">
+              {errors._global && (
+                <div className="col-12">
+                  <div className="alert alert-danger">{errors._global}</div>
+                </div>
+              )}
+
               <div className="col-md-6">
-                <label className="form-label" htmlFor="nombre">Nombre</label>
+                <label className="form-label" htmlFor="nombre">
+                  Nombre
+                </label>
                 <input
                   id="nombre"
                   className={cls("nombre")}
@@ -137,27 +179,38 @@ export default function ProductoNuevo() {
               </div>
 
               <div className="col-md-3">
-                <label className="form-label" htmlFor="categoria">Categoría</label>
+                <label className="form-label" htmlFor="categoria">
+                  Categoría
+                </label>
                 <select
                   id="categoria"
                   className={cls("categoria").replace("form-control", "form-select")}
                   value={form.categoria}
                   onChange={onChange}
-                  disabled={cats.length === 0}
+                  disabled={catsLoading || cats.length === 0}
                 >
-                  {cats.length === 0 ? (
+                  {catsLoading ? (
+                    <option value="">Cargando categorías…</option>
+                  ) : cats.length === 0 ? (
                     <option value="">(Sin categorías)</option>
                   ) : (
                     cats.map((c) => (
-                      <option key={c} value={c}>{c}</option>
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
                     ))
                   )}
                 </select>
+                {catsError && (
+                  <div className="text-warning small mt-1">{catsError}</div>
+                )}
                 <Msg k="categoria" />
               </div>
 
               <div className="col-md-3">
-                <label className="form-label" htmlFor="precio">Precio</label>
+                <label className="form-label" htmlFor="precio">
+                  Precio
+                </label>
                 <input
                   id="precio"
                   className={cls("precio")}
@@ -170,7 +223,9 @@ export default function ProductoNuevo() {
               </div>
 
               <div className="col-md-12">
-                <label className="form-label" htmlFor="descripcion">Descripción</label>
+                <label className="form-label" htmlFor="descripcion">
+                  Descripción
+                </label>
                 <textarea
                   id="descripcion"
                   className={cls("descripcion")}
@@ -184,7 +239,9 @@ export default function ProductoNuevo() {
               </div>
 
               <div className="col-md-6">
-                <label className="form-label" htmlFor="imagen">Imagen</label>
+                <label className="form-label" htmlFor="imagen">
+                  Imagen
+                </label>
                 <input
                   id="imagen"
                   className={cls("imagen")}
@@ -196,15 +253,23 @@ export default function ProductoNuevo() {
               </div>
 
               <div className="col-12 d-flex gap-2">
-                <button type="submit" className="btn btn-primary" disabled={cats.length === 0}>
-                  Guardar
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={catsLoading || saving}
+                >
+                  {saving ? "Guardando..." : "Guardar"}
                 </button>
-                <Link to="../productos" className="btn btn-outline-light">Cancelar</Link>
+                <Link to="../productos" className="btn btn-outline-light">
+                  Cancelar
+                </Link>
               </div>
 
               {ok && (
-                <div className="alert alert-success mt-2">
-                  Producto guardado correctamente.
+                <div className="col-12">
+                  <div className="alert alert-success mt-2">
+                    Producto guardado correctamente.
+                  </div>
                 </div>
               )}
             </div>

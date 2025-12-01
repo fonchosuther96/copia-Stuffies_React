@@ -7,7 +7,7 @@ const CLP = new Intl.NumberFormat("es-CL");
 
 export default function Productos() {
   const [categoria, setCategoria] = useState("todos");
-  const [precioMax, setPrecioMax] = useState(60000);
+  const [precioMax, setPrecioMax] = useState(0); // 👈 se inicializa en 0, luego se ajusta
 
   const [items, setItems] = useState([]);   // productos desde backend
   const [error, setError] = useState("");   // para mostrar error si falla la API
@@ -22,7 +22,6 @@ export default function Productos() {
         setLoading(true);
         setError("");
 
-        // 👇 Ajusta la ruta según tu backend (/api/productos, /api/products, etc.)
         const res = await api.get("/api/products");
 
         // Si el backend devuelve un array directo:
@@ -42,17 +41,37 @@ export default function Productos() {
     load();
   }, []);
 
+  // 🔹 Calcular precio mínimo y máximo reales
+  const { minPrecio, maxPrecio } = useMemo(() => {
+    if (!items.length) return { minPrecio: 0, maxPrecio: 0 };
+
+    let min = Infinity;
+    let max = 0;
+
+    for (const p of items) {
+      const precioNum = Number(p.precio) || 0;
+      if (precioNum < min) min = precioNum;
+      if (precioNum > max) max = precioNum;
+    }
+
+    if (min === Infinity) min = 0;
+
+    return { minPrecio: min, maxPrecio: max };
+  }, [items]);
+
+  // 🔹 Cuando sepamos el máximo real, ponemos el slider en ese valor
+  useEffect(() => {
+    if (maxPrecio > 0) {
+      setPrecioMax(maxPrecio);
+    }
+  }, [maxPrecio]);
+
   // Opciones de categoría = categorías presentes en productos (sin duplicados)
   const categoriaOptions = useMemo(() => {
     const set = new Set();
 
     for (const p of items) {
-      // 👇 Ajusta esta lógica según cómo venga la categoría del backend
-      // Ejemplo 1: p.categoria (string simple)
       if (p.categoria) set.add(p.categoria);
-
-      // Ejemplo 2 (alternativo si tu backend manda objeto):
-      // if (p.category && p.category.nombre) set.add(p.category.nombre);
     }
 
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
@@ -61,16 +80,22 @@ export default function Productos() {
   // Filtrado por categoría y precio
   const dataFiltrada = useMemo(() => {
     return items.filter((p) => {
-      // 👇 Ajusta los campos según tu backend
-      const cat = p.categoria; // o p.category?.nombre
-
-      const precio = Number(p.precio); // o p.price si viene como "price"
+      const cat = p.categoria;
+      const precio = Number(p.precio);
 
       const okCat = categoria === "todos" ? true : cat === categoria;
-      const okPrecio = precio <= Number(precioMax);
+
+      // Si aún no tenemos maxPrecio calculado, no filtramos por precio
+      if (maxPrecio === 0) {
+        return okCat;
+      }
+
+      const limite = Number(precioMax || maxPrecio);
+      const okPrecio = precio <= limite;
+
       return okCat && okPrecio;
     });
-  }, [categoria, precioMax, items]);
+  }, [categoria, precioMax, items, maxPrecio]);
 
   if (loading) {
     return (
@@ -117,17 +142,29 @@ export default function Productos() {
 
           <div className="col-md-6">
             <label className="form-label text-light d-flex justify-content-between">
-              <span>Precio máximo</span>
-              <strong>${CLP.format(precioMax)}</strong>
+              <span>
+                Precio máximo{" "}
+                {minPrecio > 0 && maxPrecio > 0 && (
+                  <small className="text-secondary ms-2">
+                    ({CLP.format(minPrecio)} – {CLP.format(maxPrecio)})
+                  </small>
+                )}
+              </span>
+              <strong>
+                {maxPrecio > 0 ? `$${CLP.format(precioMax)}` : "Sin filtro"}
+              </strong>
             </label>
             <input
               type="range"
               className="form-range"
-              min="10000"
-              max="60000"
-              step="5000"
-              value={precioMax}
-              onChange={(e) => setPrecioMax(parseInt(e.target.value, 10))}
+              min={minPrecio || 0}      // 👈 mínimo real
+              max={maxPrecio || 0}      // 👈 máximo real
+              step={5000}
+              value={maxPrecio === 0 ? 0 : precioMax}
+              disabled={maxPrecio === 0}
+              onChange={(e) =>
+                setPrecioMax(parseInt(e.target.value, 10) || maxPrecio)
+              }
             />
           </div>
         </div>

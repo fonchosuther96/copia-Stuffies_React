@@ -1,11 +1,6 @@
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
 
-/**
- * Sidebar para el panel admin.
- * - Responsive: botón para colapsar en móviles
- * - Activo: NavLink añade la clase 'active' automáticamente
- */
 export default function Sidebar() {
   const [open, setOpen] = useState(false);
 
@@ -24,6 +19,7 @@ export default function Sidebar() {
       </button>
 
       <div className="list-group small">
+        {/* ------------------ GENERAL ------------------ */}
         <div className="text-secondary text-uppercase fw-bold px-3 mb-2">
           General
         </div>
@@ -34,6 +30,7 @@ export default function Sidebar() {
           🧾 Órdenes / Boletas
         </NavLink>
 
+        {/* ------------------ PRODUCTOS ------------------ */}
         <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
           Productos
         </div>
@@ -50,26 +47,25 @@ export default function Sidebar() {
           📈 Reportes
         </NavLink>
 
+        {/* ------------------ CATÁLOGO ------------------ */}
         <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
           Catálogo
         </div>
         <NavLink to="/admin/categorias" className={linkCls}>
           🗂️ Categorías
         </NavLink>
-        <NavLink to="/admin/categorias/nueva" className={linkCls}>
-          ➕ Nueva categoría
-        </NavLink>
+        {/* ✔ Se eliminó: Nueva categoría */}
 
+        {/* ------------------ USUARIOS ------------------ */}
         <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
           Usuarios
         </div>
         <NavLink to="/admin/usuarios" className={linkCls}>
           👤 Listado
         </NavLink>
-        <NavLink to="/admin/usuarios/nuevo" className={linkCls}>
-          ➕ Nuevo usuario
-        </NavLink>
+        {/* ❌ Eliminado: Nuevo usuario */}
 
+        {/* ------------------ CUENTA ------------------ */}
         <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
           Cuenta
         </div>

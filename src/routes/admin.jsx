@@ -20,11 +20,9 @@ import Reportes from "../admin/pages/Reportes.jsx"; // reportes globales o de pr
 // Categorías
 import CategoriasList from "../admin/pages/CategoriasList.jsx";
 import CategoriaNueva from "../admin/pages/CategoriaNueva.jsx";
-import CategoriaEditar from "../admin/pages/CategoriaEditar.jsx";
 
 // Usuarios
 import UsuariosList from "../admin/pages/UsuariosList.jsx";
-import UsuarioNuevo from "../admin/pages/UsuarioNuevo.jsx";
 import UsuarioEditar from "../admin/pages/UsuarioEditar.jsx";
 import HistorialCompras from "../admin/pages/HistorialCompras.jsx";
 
@@ -60,11 +58,9 @@ export const adminRoutes = [
       // Categorías
       { path: "categorias", element: <CategoriasList /> },
       { path: "categorias/nueva", element: <CategoriaNueva /> },
-      { path: "categorias/editar/:id", element: <CategoriaEditar /> },
 
       // Usuarios
       { path: "usuarios", element: <UsuariosList /> },
-      { path: "usuarios/nuevo", element: <UsuarioNuevo /> },
       { path: "usuarios/editar/:id", element: <UsuarioEditar /> },
       { path: "historial/:id", element: <HistorialCompras /> },
 

@@ -1,51 +1,32 @@
 // src/pages/Registro.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import api from "../api";
 
-const USERS_KEY = "stuffies_users";
+// ======================
+//   VALIDAR RUN CHILENO
+// ======================
+function validarRut(rut) {
+  rut = rut.replace(/\./g, "").replace(/-/g, "").toUpperCase();
+  if (!/^\d{7,8}[0-9K]$/.test(rut)) return false;
 
-const getUsers = () => {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch {
-    return [];
+  const cuerpo = rut.slice(0, -1);
+  let dv = rut.slice(-1);
+
+  let suma = 0;
+  let multiplo = 2;
+
+  for (let i = cuerpo.length - 1; i >= 0; i--) {
+    suma += multiplo * Number(cuerpo[i]);
+    multiplo = multiplo === 7 ? 2 : multiplo + 1;
   }
-};
-const setUsers = (arr) => localStorage.setItem(USERS_KEY, JSON.stringify(arr));
 
-// 👇 MUEVO idToKey ARRIBA para no usarlo antes de declararlo
-const idToKey = (id) =>
-  ({
-    regRun: "run",
-    regName: "name",
-    regLast: "last",
-    regEmail: "email",
-    regUser: "user",
-    regPass: "pass",
-    regPass2: "pass2",
-    regAddress: "address",
-    regRole: "role",
-  }[id] || id);
+  const dvEsperado = 11 - (suma % 11);
+  let dvCalc =
+    dvEsperado === 11 ? "0" : dvEsperado === 10 ? "K" : String(dvEsperado);
 
-// === Validadores inline, simples y reutilizables ===
-const required = (v, msg = "Campo obligatorio") =>
-  (typeof v === "string" ? v.trim() : v) ? null : msg;
-
-const emailOk = (v) =>
-  /^\S+@\S+\.\S+$/.test(String(v).trim()) ? null : "Correo inválido";
-
-const len = (v, { min = 0, max = Infinity } = {}) => {
-  const s = String(v ?? "").trim();
-  if (s.length < min) return `Mínimo ${min} caracteres`;
-  if (s.length > max) return `Máximo ${max} caracteres`;
-  return null;
-};
-
-// RUN chileno simple (solo dígitos, 7–9). Si quieres DV lo agregamos luego.
-const runSimple = (v) =>
-  /^\d{7,9}$/.test(String(v).trim())
-    ? null
-    : "Ingresa un RUN válido (solo números, 7–9 dígitos)";
+  return dvCalc === dv;
+}
 
 export default function Registro() {
   const navigate = useNavigate();
@@ -61,214 +42,301 @@ export default function Registro() {
     address: "",
     role: "",
   });
+
   const [errors, setErrors] = useState({});
   const [ok, setOk] = useState(false);
 
-  // Validación completa del formulario
-  const validate = (draft = form) => {
+  // ======================
+  //   VALIDACIÓN COMPLETA
+  // ======================
+  const validate = () => {
     const e = {};
 
-    e.run = runSimple(draft.run);
-    e.name = required(draft.name, "Ingresa tu nombre") || len(draft.name, { min: 2, max: 50 });
-    e.last = required(draft.last, "Ingresa tus apellidos") || len(draft.last, { min: 2, max: 100 });
-    e.email = required(draft.email, "Ingresa tu correo") || emailOk(draft.email) || len(draft.email, { max: 100 });
-    e.user = required(draft.user, "Ingresa un usuario") || len(draft.user, { min: 3, max: 30 });
-    e.pass = required(draft.pass, "Ingresa una contraseña") || len(draft.pass, { min: 4, max: 10 });
-    e.pass2 = required(draft.pass2, "Repite la contraseña") || (draft.pass2 !== draft.pass ? "Las contraseñas no coinciden" : null);
-    e.address = required(draft.address, "Ingresa tu dirección") || len(draft.address, { min: 5, max: 300 });
-    e.role = required(draft.role, "Selecciona un tipo de usuario");
+    const run = form.run.trim();
+    const name = form.name.trim();
+    const last = form.last.trim();
+    const email = form.email.trim();
+    const user = form.user.trim();
+    const pass = form.pass;
+    const pass2 = form.pass2;
+    const address = form.address.trim();
+    const role = form.role;
 
-    // Unicidad
-    const users = getUsers();
-    if (!e.email && users.some((u) => (u.email || "").toLowerCase() === draft.email.trim().toLowerCase())) {
-      e.email = "Este correo ya está registrado";
-    }
-    if (!e.user && users.some((u) => (u.user || "").toLowerCase() === draft.user.trim().toLowerCase())) {
-      e.user = "Este usuario ya existe";
+    // RUN
+    if (!run) {
+      e.run = "Ingresa tu RUN";
+    } else if (!validarRut(run)) {
+      e.run = "RUN inválido. Debe incluir dígito verificador.";
     }
 
-    // Limpia null/undefined
-    Object.keys(e).forEach((k) => e[k] == null && delete e[k]);
+    // NOMBRE (mínimo 2)
+    if (!name) {
+      e.name = "Ingresa tu nombre";
+    } else if (name.length < 2) {
+      e.name = "El nombre debe tener al menos 2 caracteres";
+    }
+
+    // APELLIDOS (mínimo 2)
+    if (!last) {
+      e.last = "Ingresa tus apellidos";
+    } else if (last.length < 2) {
+      e.last = "Los apellidos deben tener al menos 2 caracteres";
+    }
+
+    // EMAIL
+    if (!email) {
+      e.email = "Ingresa tu correo";
+    } else if (!/^\S+@\S+\.\S+$/.test(email)) {
+      e.email = "Correo inválido";
+    } else if (email.length > 100) {
+      e.email = "El correo es demasiado largo";
+    }
+
+    // USUARIO (4–20)
+    if (!user) {
+      e.user = "Ingresa un usuario";
+    } else if (user.length < 4) {
+      e.user = "El usuario debe tener al menos 4 caracteres";
+    } else if (user.length > 20) {
+      e.user = "El usuario no debe superar 20 caracteres";
+    }
+
+    // CONTRASEÑA (4–10)
+    if (!pass) {
+      e.pass = "Ingresa una contraseña";
+    } else if (pass.length < 4 || pass.length > 10) {
+      e.pass = "Contraseña entre 4 y 10 caracteres";
+    }
+
+    // REPETIR CONTRASEÑA
+    if (!pass2) {
+      e.pass2 = "Repite la contraseña";
+    } else if (pass2 !== pass) {
+      e.pass2 = "Las contraseñas no coinciden";
+    }
+
+    // DIRECCIÓN (mínimo 5)
+    if (!address) {
+      e.address = "Ingresa tu dirección";
+    } else if (address.length < 5) {
+      e.address = "La dirección debe tener al menos 5 caracteres";
+    }
+
+    // ROL
+    if (!role) {
+      e.role = "Selecciona un rol";
+    }
+
     return e;
-  };
-
-  // Validación por campo al escribir (no cambia tu layout)
-  const validateField = (key, value) => {
-    const draft = { ...form, [key]: value };
-    const e = validate(draft);
-    setErrors(e);
   };
 
   const onChange = (e) => {
     const { id, value } = e.target;
-    const key = idToKey(id);
-    setForm((f) => ({ ...f, [key]: value }));
-    validateField(key, value);
+    setForm((f) => ({ ...f, [id]: value }));
+    setErrors((err) => ({ ...err, [id]: "" })); // limpia error del campo
   };
 
-  const onSubmit = (e) => {
+  // ======================
+  //      ENVIAR A API
+  // ======================
+  const onSubmit = async (e) => {
     e.preventDefault();
+
     const eAll = validate();
     setErrors(eAll);
-    if (Object.keys(eAll).length) return;
+    if (Object.keys(eAll).length > 0) return;
 
-    const users = getUsers();
-    users.push({
-      run: form.run.trim(),
-      name: form.name.trim(),
-      last: form.last.trim(),
-      email: form.email.trim().toLowerCase(),
-      user: form.user.trim(),
-      pass: form.pass,
-      address: form.address.trim(),
-      role: form.role,
-      avatar: "https://i.postimg.cc/qRdn8fDv/LOGO-ESTRELLA-SIMPLE-CON-ESTRELLITAS.png",
-    });
-    setUsers(users);
+    try {
+      const payload = {
+        rut: form.run.trim(),
+        nombre: form.name.trim(),
+        apellido: form.last.trim(),
+        email: form.email.trim(),
+        username: form.user.trim(),
+        password: form.pass,
+        direccion: form.address.trim(),
+        role: form.role.toUpperCase(), // backend usa ROLE_...
+      };
 
-    setOk(true);
-    setTimeout(() => navigate("/login"), 800);
+      await api.post("/auth/register", payload);
+
+      setOk(true);
+      setErrors({});
+      setTimeout(() => navigate("/login"), 800);
+    } catch (err) {
+      console.error(err);
+
+      const msg = err?.response?.data;
+
+      // Backend suele responder: "No se pudo registrar el usuario: El usuario ya existe"
+      if (typeof msg === "string" && msg.includes("El usuario ya existe")) {
+        setErrors({ user: "Ese usuario ya existe. Prueba con otro nombre." });
+      } else {
+        setErrors({
+          api: "No se pudo crear la cuenta. Verifica los datos o intenta más tarde.",
+        });
+      }
+    }
   };
 
-  const cls = (key) => `form-control ${errors[key] ? "is-invalid" : ""}`;
-  const msg = (key) =>
-    errors[key] ? (
-      <div className="invalid-feedback">{errors[key]}</div>
+  const cls = (f) => `form-control ${errors[f] ? "is-invalid" : ""}`;
+  const msg = (f) =>
+    errors[f] ? (
+      <div className="invalid-feedback">{errors[f]}</div>
     ) : (
-      // Reservo el espacio para que el layout no salte
       <div className="invalid-feedback" />
     );
 
   return (
-    <main className="container py-5">
-      <div className="row justify-content-center">
-        <div className="col-lg-8">
-          {/* usa tus estilos globales; si tienes .cardx en styles.css, aplica aquí */}
-          <div className="cardx">
-            <h2 className="mb-3">Crear cuenta</h2>
+    <main
+      className="py-5"
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#111",
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
+      <div className="container" style={{ maxWidth: "650px" }}>
+        <h2 className="text-light mb-4 text-center">Crear cuenta</h2>
 
-            <form id="registerForm" noValidate onSubmit={onSubmit}>
-              <div className="row g-3">
-                <div className="col-md-4 form-group">
-                  <label htmlFor="regRun" className="form-label">
-                    RUN (sin puntos ni guion)
-                  </label>
-                  <input
-                    id="regRun"
-                    className={cls("run")}
-                    inputMode="numeric"
-                    maxLength={9}
-                    value={form.run}
-                    onChange={onChange}
-                    placeholder="12345678"
-                  />
-                  {msg("run")}
-                </div>
+        <form
+          onSubmit={onSubmit}
+          className="p-4 rounded-3"
+          style={{ backgroundColor: "#1e1e1e", border: "1px solid #444" }}
+          noValidate
+        >
+          {errors.api && (
+            <div className="alert alert-danger">{errors.api}</div>
+          )}
 
-                <div className="col-md-4 form-group">
-                  <label htmlFor="regName" className="form-label">Nombre</label>
-                  <input id="regName" className={cls("name")} maxLength={50} value={form.name} onChange={onChange} />
-                  {msg("name")}
-                </div>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="form-label text-light">RUN</label>
+              <input
+                id="run"
+                className={cls("run")}
+                placeholder="12345678-9"
+                value={form.run}
+                onChange={onChange}
+              />
+              {msg("run")}
+            </div>
 
-                <div className="col-md-4 form-group">
-                  <label htmlFor="regLast" className="form-label">Apellidos</label>
-                  <input id="regLast" className={cls("last")} maxLength={100} value={form.last} onChange={onChange} />
-                  {msg("last")}
-                </div>
+            <div className="col-md-6">
+              <label className="form-label text-light">Nombre</label>
+              <input
+                id="name"
+                className={cls("name")}
+                value={form.name}
+                onChange={onChange}
+              />
+              {msg("name")}
+            </div>
 
-                <div className="col-md-6 form-group">
-                  <label htmlFor="regEmail" className="form-label">Correo</label>
-                  <input
-                    id="regEmail"
-                    type="email"
-                    className={cls("email")}
-                    maxLength={100}
-                    value={form.email}
-                    onChange={onChange}
-                    placeholder="nombre@duoc.cl"
-                  />
-                  {msg("email")}
-                </div>
+            <div className="col-md-12">
+              <label className="form-label text-light">Apellidos</label>
+              <input
+                id="last"
+                className={cls("last")}
+                value={form.last}
+                onChange={onChange}
+              />
+              {msg("last")}
+            </div>
 
-                <div className="col-md-6 form-group">
-                  <label htmlFor="regUser" className="form-label">Usuario</label>
-                  <input id="regUser" className={cls("user")} maxLength={30} value={form.user} onChange={onChange} />
-                  {msg("user")}
-                </div>
+            <div className="col-md-6">
+              <label className="form-label text-light">Correo</label>
+              <input
+                id="email"
+                className={cls("email")}
+                type="email"
+                value={form.email}
+                onChange={onChange}
+              />
+              {msg("email")}
+            </div>
 
-                <div className="col-md-6 form-group">
-                  <label htmlFor="regPass" className="form-label">Contraseña (4–10)</label>
-                  <input
-                    id="regPass"
-                    type="password"
-                    className={cls("pass")}
-                    minLength={4}
-                    maxLength={10}
-                    value={form.pass}
-                    onChange={onChange}
-                    placeholder="••••"
-                  />
-                  {msg("pass")}
-                </div>
+            <div className="col-md-6">
+              <label className="form-label text-light">Usuario</label>
+              <input
+                id="user"
+                className={cls("user")}
+                value={form.user}
+                onChange={onChange}
+              />
+              {msg("user")}
+            </div>
 
-                <div className="col-md-6 form-group">
-                  <label htmlFor="regPass2" className="form-label">Repite la contraseña</label>
-                  <input
-                    id="regPass2"
-                    type="password"
-                    className={cls("pass2")}
-                    minLength={4}
-                    maxLength={10}
-                    value={form.pass2}
-                    onChange={onChange}
-                    placeholder="••••"
-                  />
-                  {msg("pass2")}
-                </div>
+            <div className="col-md-6">
+              <label className="form-label text-light">Contraseña</label>
+              <input
+                id="pass"
+                type="password"
+                className={cls("pass")}
+                value={form.pass}
+                onChange={onChange}
+              />
+              {msg("pass")}
+            </div>
 
-                <div className="col-md-6 form-group">
-                  <label htmlFor="regAddress" className="form-label">Dirección</label>
-                  <input
-                    id="regAddress"
-                    className={cls("address")}
-                    maxLength={300}
-                    value={form.address}
-                    onChange={onChange}
-                  />
-                  {msg("address")}
-                </div>
+            <div className="col-md-6">
+              <label className="form-label text-light">
+                Repetir contraseña
+              </label>
+              <input
+                id="pass2"
+                type="password"
+                className={cls("pass2")}
+                value={form.pass2}
+                onChange={onChange}
+              />
+              {msg("pass2")}
+            </div>
 
-                <div className="col-md-6 form-group">
-                  <label htmlFor="regRole" className="form-label">Tipo de usuario</label>
-                  <select
-                    id="regRole"
-                    className={`form-select ${errors.role ? "is-invalid" : ""}`}
-                    value={form.role}
-                    onChange={onChange}
-                  >
-                    <option value="">Seleccione…</option>
-                    <option value="cliente">Cliente</option>
-                    <option value="vendedor">Vendedor</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                  {msg("role")}
-                </div>
-              </div>
+            <div className="col-md-12">
+              <label className="form-label text-light">Dirección</label>
+              <input
+                id="address"
+                className={cls("address")}
+                value={form.address}
+                onChange={onChange}
+              />
+              {msg("address")}
+            </div>
 
-              <div className="mt-3 d-flex gap-2">
-                <button className="btn btn-primary" type="submit">Crear cuenta</button>
-                <Link className="btn btn-outline-dark" to="/login">Ya tengo cuenta</Link>
-              </div>
-
-              {ok && (
-                <div id="okMsg" className="alert alert-success mt-3">
-                  ¡Cuenta creada! Redirigiendo a login…
-                </div>
-              )}
-            </form>
+            <div className="col-md-12">
+              <label className="form-label text-light">Rol</label>
+              <select
+                id="role"
+                className={`form-select ${errors.role ? "is-invalid" : ""}`}
+                value={form.role}
+                onChange={onChange}
+              >
+                <option value="">Selecciona…</option>
+                <option value="cliente">Cliente</option>
+                <option value="vendedor">Vendedor</option>
+                <option value="admin">Administrador</option>
+              </select>
+              {msg("role")}
+            </div>
           </div>
-        </div>
+
+          <div className="mt-4 d-flex gap-2">
+            <button className="btn btn-primary w-50" type="submit">
+              Crear cuenta
+            </button>
+            <Link to="/login" className="btn btn-outline-light w-50">
+              Ya tengo cuenta
+            </Link>
+          </div>
+
+          {ok && (
+            <div className="alert alert-success mt-3">
+              ¡Cuenta creada! Redirigiendo…
+            </div>
+          )}
+        </form>
       </div>
     </main>
   );

@@ -1,11 +1,18 @@
 // src/admin/pages/ProductoEditar.jsx
-import { useEffect, useMemo, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { getLiveById, updateProduct, getCategories } from "../../services/inventory.js";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  getLiveById,
+  getCategories,
+  updateProduct,
+} from "../../services/inventory.js";
 
 export default function ProductoEditar() {
-  const { id } = useParams();
   const navigate = useNavigate();
+  const { id } = useParams();
+
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -14,55 +21,46 @@ export default function ProductoEditar() {
     descripcion: "",
     imagen: "",
   });
+
+  const [cats, setCats] = useState([]);
   const [errors, setErrors] = useState({});
   const [ok, setOk] = useState(false);
-  const [notFound, setNotFound] = useState(false);
 
-  // === CATEGORÍAS DINÁMICAS ===
-  const [cats, setCats] = useState([]);
-
-  // Cargar categorías del catálogo y reaccionar a cambios globales
   useEffect(() => {
-    const loadCats = () => setCats(getCategories());
-    loadCats();
+    const load = async () => {
+      try {
+        setLoading(true);
 
-    const onStorage = (e) => {
-      if (e.key === "stuffies_categories_v1") loadCats();
+        const [prod, listCats] = await Promise.all([
+          getLiveById(id),
+          getCategories(),
+        ]);
+
+        if (!prod) {
+          setNotFound(true);
+          return;
+        }
+
+        setForm({
+          nombre: prod.nombre || "",
+          categoria: prod.categoria || "",
+          precio: prod.precio ?? "",
+          descripcion: prod.descripcion || "",
+          imagen: prod.imagen || "",
+        });
+
+        setCats(Array.isArray(listCats) ? listCats : []);
+      } catch (err) {
+        console.error(err);
+        setNotFound(true);
+      } finally {
+        setLoading(false);
+      }
     };
-    const onUpdated = () => loadCats();
 
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("inventory:updated", onUpdated);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("inventory:updated", onUpdated);
-    };
-  }, []);
-
-  // Cargar datos del producto por id
-  useEffect(() => {
-    const p = getLiveById(id);
-    if (!p) {
-      setNotFound(true);
-      return;
-    }
-    setForm({
-      nombre: p.nombre || "",
-      categoria: p.categoria || "",
-      precio: String(p.precio ?? ""),
-      descripcion: p.descripcion || "",
-      imagen: p.imagen || "",
-    });
+    load();
   }, [id]);
 
-  // Si la categoría del producto no está en el catálogo, la añadimos SOLO para el <select>
-  const categoriaOptions = useMemo(() => {
-    const set = new Set(cats);
-    if (form.categoria && !set.has(form.categoria)) set.add(form.categoria);
-    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  }, [cats, form.categoria]);
-
-  // === Validadores ===
   const required = (v, m = "Campo obligatorio") =>
     (typeof v === "string" ? v.trim() : v) ? null : m;
 
@@ -74,61 +72,88 @@ export default function ProductoEditar() {
   };
 
   const isPrecio = (v) =>
-    Number.isFinite(+v) && +v >= 0 ? null : "Precio inválido (usa números ≥ 0)";
+    Number.isFinite(+v) && +v >= 0 ? null : "Precio inválido";
 
   const isUrl = (v) =>
     /^(https?:\/\/)[^\s]+$/i.test(String(v || "").trim())
       ? null
-      : "URL inválida (usa http/https)";
+      : "URL inválida";
 
   const validate = (draft = form) => {
     const e = {};
+
     e.nombre = required(draft.nombre) || len(draft.nombre, { min: 3, max: 80 });
-    e.categoria = required(draft.categoria, "Selecciona una categoría");
+
+    if (!draft.categoria) {
+      e.categoria = "Selecciona una categoría";
+    } else if (
+      Array.isArray(cats) &&
+      cats.length &&
+      !cats.includes(String(draft.categoria))
+    ) {
+      e.categoria = "La categoría no existe.";
+    }
+
     e.precio = required(draft.precio) || isPrecio(draft.precio);
     e.descripcion =
-      required(draft.descripcion) || len(draft.descripcion, { min: 20, max: 400 });
+      required(draft.descripcion) ||
+      len(draft.descripcion, { min: 20, max: 400 });
     e.imagen = required(draft.imagen) || isUrl(draft.imagen);
 
     Object.keys(e).forEach((k) => e[k] == null && delete e[k]);
+
     return e;
   };
 
   const onChange = (e) => {
-    const { id: key, value } = e.target;
-    const next = { ...form, [key]: value };
+    const { id, value } = e.target;
+    const next = { ...form, [id]: value };
     setForm(next);
     setErrors(validate(next));
     setOk(false);
   };
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
     const eAll = validate();
     setErrors(eAll);
     if (Object.keys(eAll).length) return;
 
-    updateProduct(id, {
-      nombre: form.nombre,
-      categoria: form.categoria,
-      precio: form.precio,
-      descripcion: form.descripcion,
-      imagen: form.imagen,
-    });
+    try {
+      await updateProduct(id, {
+        nombre: form.nombre,
+        categoria: form.categoria,
+        precio: form.precio,
+        descripcion: form.descripcion,
+        imagen: form.imagen,
+      });
 
-    setOk(true);
-    setTimeout(() => navigate("../productos"), 600);
+      setOk(true);
+      setTimeout(() => navigate("../productos"), 600);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo actualizar el producto.");
+    }
   };
 
   const cls = (k) => `form-control ${errors[k] ? "is-invalid" : ""}`;
   const Msg = ({ k }) =>
-    errors[k] ? <div className="invalid-feedback">{errors[k]}</div> : <div className="invalid-feedback" />;
+    errors[k] ? (
+      <div className="invalid-feedback">{errors[k]}</div>
+    ) : (
+      <div className="invalid-feedback" />
+    );
+
+  if (loading) return <p>Cargando producto #{id}...</p>;
 
   if (notFound) {
     return (
-      <div className="alert alert-warning">
-        No se encontró el producto #{id}.{" "}
-        <Link to="../productos" className="alert-link">Volver al listado</Link>
+      <div>
+        <h2>Producto no encontrado</h2>
+        <p>No existe el producto con id {id}.</p>
+        <Link to="../productos" className="btn btn-outline-primary">
+          Volver
+        </Link>
       </div>
     );
   }
@@ -142,76 +167,87 @@ export default function ProductoEditar() {
           <form noValidate onSubmit={onSubmit}>
             <div className="row g-3">
               <div className="col-md-6">
-                <label className="form-label" htmlFor="nombre">Nombre</label>
+                <label htmlFor="nombre" className="form-label">
+                  Nombre
+                </label>
                 <input
                   id="nombre"
                   className={cls("nombre")}
                   value={form.nombre}
                   onChange={onChange}
-                  placeholder="Nombre del producto"
                   maxLength={80}
                 />
                 <Msg k="nombre" />
               </div>
 
               <div className="col-md-3">
-                <label className="form-label" htmlFor="categoria">Categoría</label>
+                <label htmlFor="categoria" className="form-label">
+                  Categoría
+                </label>
                 <select
                   id="categoria"
                   className={cls("categoria").replace("form-control", "form-select")}
                   value={form.categoria}
                   onChange={onChange}
+                  disabled={cats.length === 0}
                 >
-                  <option value="">Seleccione…</option>
-                  {categoriaOptions.map((c) => (
-                    <option key={c} value={c}>{c}</option>
+                  <option value="">Selecciona categoría</option>
+                  {cats.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
                 </select>
                 <Msg k="categoria" />
               </div>
 
               <div className="col-md-3">
-                <label className="form-label" htmlFor="precio">Precio</label>
+                <label htmlFor="precio" className="form-label">
+                  Precio
+                </label>
                 <input
                   id="precio"
                   className={cls("precio")}
                   value={form.precio}
                   onChange={onChange}
-                  inputMode="numeric"
-                  placeholder="39990"
                 />
                 <Msg k="precio" />
               </div>
 
               <div className="col-md-12">
-                <label className="form-label" htmlFor="descripcion">Descripción</label>
+                <label htmlFor="descripcion" className="form-label">
+                  Descripción
+                </label>
                 <textarea
                   id="descripcion"
                   className={cls("descripcion")}
                   rows={4}
                   value={form.descripcion}
                   onChange={onChange}
-                  placeholder="Descripción corta..."
-                  maxLength={400}
                 />
                 <Msg k="descripcion" />
               </div>
 
               <div className="col-md-6">
-                <label className="form-label" htmlFor="imagen">Imagen</label>
+                <label htmlFor="imagen" className="form-label">
+                  Imagen
+                </label>
                 <input
                   id="imagen"
                   className={cls("imagen")}
                   value={form.imagen}
                   onChange={onChange}
-                  placeholder="https://..."
                 />
                 <Msg k="imagen" />
               </div>
 
               <div className="col-12 d-flex gap-2">
-                <button className="btn btn-primary">Actualizar</button>
-                <Link to="../productos" className="btn btn-outline-light">Volver</Link>
+                <button type="submit" className="btn btn-primary">
+                  Guardar cambios
+                </button>
+                <Link to="../productos" className="btn btn-outline-light">
+                  Cancelar
+                </Link>
               </div>
 
               {ok && (

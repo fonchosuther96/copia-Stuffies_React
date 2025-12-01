@@ -6,6 +6,9 @@ import { AuthContext } from "../context/AuthContext.jsx";
 export default function ProtectedRoute({ children, roles }) {
   const { user } = useContext(AuthContext);
 
+  // 👇 DEBUG: ver qué ve realmente este componente
+  console.log("[ProtectedRoute] user =", user, "roles requeridos =", roles);
+
   // Si no hay usuario logueado → mandamos a login
   if (!user) {
     return <Navigate to="/login" replace />;
@@ -14,9 +17,8 @@ export default function ProtectedRoute({ children, roles }) {
   // Si se especificaron roles, validamos que el usuario tenga al menos uno
   if (roles && roles.length > 0) {
     // roles en user pueden venir como ["ROLE_ADMIN"] o [{ authority: "ROLE_ADMIN" }]
-    const userRoles = user.roles?.map((r) =>
-      typeof r === "string" ? r : r.authority
-    ) || [];
+    const userRoles =
+      user.roles?.map((r) => (typeof r === "string" ? r : r.authority)) || [];
 
     const hasRole = roles.some((role) => userRoles.includes(role));
 

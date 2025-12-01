@@ -1,31 +1,43 @@
 // src/context/AuthContext.jsx
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState } from "react";
 
 export const AuthContext = createContext(null);
+
+const SESSION_KEY = "session";
+const TOKEN_KEY = "token";
 
 export function AuthProvider({ children }) {
   // Estado inicial: intentamos leer la sesión desde localStorage
   const [user, setUser] = useState(() => {
     try {
-      const raw = localStorage.getItem("session");
-      if (!raw) return null;               // nada guardado todavía
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return null; // nada guardado todavía
       const parsed = JSON.parse(raw);
-      // Validación mínima
       if (!parsed || typeof parsed !== "object") return null;
-      return parsed;                       // { username, role/roles, token }
+      // parsed debería ser { token, username, roles }
+      return parsed;
     } catch (err) {
       console.error("[Auth] Error parseando session desde localStorage", err);
       return null;
     }
   });
 
-  // Helper para guardar sesión
+  // Helper para guardar sesión en localStorage
   const saveSession = (session) => {
     try {
       if (!session) {
-        localStorage.removeItem("session");
+        localStorage.removeItem(SESSION_KEY);
+        localStorage.removeItem(TOKEN_KEY);
       } else {
-        localStorage.setItem("session", JSON.stringify(session));
+        // guardamos toda la sesión
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+
+        // y además solo el token en otra clave, para api.js
+        if (session.token) {
+          localStorage.setItem(TOKEN_KEY, session.token);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
       }
     } catch (err) {
       console.error("[Auth] Error guardando session en localStorage", err);
@@ -33,8 +45,8 @@ export function AuthProvider({ children }) {
   };
 
   // LOGIN: lo usamos desde Login.jsx
+  // data viene del backend: { token, username, role } o { token, username, roles: [...] }
   const login = (data) => {
-    // data debería traer: { token, username, roles } o { token, username, role }
     let roles = [];
 
     if (Array.isArray(data.roles)) {
@@ -46,7 +58,7 @@ export function AuthProvider({ children }) {
     const session = {
       token: data.token,
       username: data.username,
-      roles,                      // ← siempre manejamos array de roles
+      roles, // siempre array
     };
 
     setUser(session);
@@ -65,6 +77,7 @@ export function AuthProvider({ children }) {
     logout,
     isAuthenticated: !!user,
     roles: user?.roles || [],
+    isAdmin: user?.roles?.includes("ROLE_ADMIN") || false,
   };
 
   return (

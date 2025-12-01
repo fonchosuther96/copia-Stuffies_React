@@ -22,6 +22,7 @@ function resolveImagen(producto) {
 
 export default function DetalleProducto() {
   const { id } = useParams();
+  const numericId = Number(id); // 👈 importante para coincidir con los IDs numéricos
 
   const [producto, setProducto] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -39,15 +40,28 @@ export default function DetalleProducto() {
       try {
         const baseUrl =
           import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-        const resp = await fetch(`${baseUrl}/api/products/${id}`);
+        const resp = await fetch(`${baseUrl}/api/products/${numericId}`);
 
         if (resp.ok) {
           const data = await resp.json();
+
+          // Normalizar tallas: puede venir como "S,M,L,XL" o ya como array
+          const tallasNormalizadas = Array.isArray(data.tallas)
+            ? data.tallas
+            : typeof data.tallas === "string"
+            ? data.tallas
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean)
+            : [];
+
           const normalizado = {
             ...data,
-            // Normalizamos el campo de imagen al que usa el frontend
+            id: data.id, // aseguramos que sea el id de la BD
             imagen: resolveImagen(data),
+            tallas: tallasNormalizadas,
           };
+
           setProducto(normalizado);
           setLoading(false);
           return;
@@ -58,7 +72,7 @@ export default function DetalleProducto() {
       }
 
       // 2) Fallback: inventario local (productos.js + localStorage)
-      const local = getLiveById(id);
+      const local = getLiveById(numericId);
       if (local) {
         setProducto({
           ...local,
@@ -71,7 +85,7 @@ export default function DetalleProducto() {
     }
 
     cargarProducto();
-  }, [id]);
+  }, [numericId]);
 
   // Stock por talla (del inventario local)
   const stockPorTalla = useMemo(() => {
@@ -83,23 +97,36 @@ export default function DetalleProducto() {
     }
   }, [producto]);
 
-  const totalStock = useMemo(
-    () =>
-      Object.values(stockPorTalla).reduce(
-        (acc, v) => acc + (typeof v === "number" ? v : 0),
-        0
-      ),
-    [stockPorTalla]
-  );
+  // Stock total: si el producto de la API trae "stock", usamos eso.
+  // Si no, sumamos el stockPorTalla (caso productos locales).
+  const totalStock = useMemo(() => {
+    if (!producto) return 0;
 
-  const sinStock = !producto || totalStock <= 0;
+    if (typeof producto.stock === "number") {
+      return producto.stock;
+    }
 
-  // Tallas y colores
-  const tallasDisponibles =
-    (producto && producto.tallas && producto.tallas.length > 0
-      ? producto.tallas
-      : Object.keys(stockPorTalla)) || [];
+    return Object.values(stockPorTalla).reduce(
+      (acc, v) => acc + (typeof v === "number" ? v : 0),
+      0
+    );
+  }, [producto, stockPorTalla]);
 
+  const sinStock = totalStock <= 0;
+
+  // Tallas disponibles: primero las del producto, si no, las del mapa de stock
+  const tallasDisponibles = useMemo(() => {
+    if (!producto) return [];
+
+    if (Array.isArray(producto.tallas) && producto.tallas.length > 0) {
+      return producto.tallas;
+    }
+
+    const keys = Object.keys(stockPorTalla);
+    return keys.length > 0 ? keys : [];
+  }, [producto, stockPorTalla]);
+
+  // Colores (solo existen en productos locales)
   const coloresDisponibles =
     (producto && producto.colores && producto.colores.length > 0
       ? producto.colores
@@ -162,6 +189,7 @@ export default function DetalleProducto() {
   }
 
   const img = resolveImagen(producto);
+  const tieneStockPorTalla = Object.keys(stockPorTalla).length > 0;
 
   return (
     <main className="detalle-page py-5 text-light">
@@ -211,7 +239,10 @@ export default function DetalleProducto() {
                 <div className="d-flex flex-wrap gap-2">
                   {tallasDisponibles.map((t) => {
                     const stockTalla = stockPorTalla[t] ?? 0;
-                    const agotada = stockTalla <= 0;
+                    // Si NO tenemos detalle por talla, solo usamos el stock global
+                    const agotada = tieneStockPorTalla
+                      ? stockTalla <= 0
+                      : sinStock;
 
                     return (
                       <button
@@ -225,7 +256,8 @@ export default function DetalleProducto() {
                         disabled={agotada}
                         onClick={() => setTallaSeleccionada(t)}
                       >
-                        {t} {agotada ? "(Agotada)" : ""}
+                        {t}{" "}
+                        {tieneStockPorTalla && agotada ? "(Agotada)" : ""}
                       </button>
                     );
                   })}

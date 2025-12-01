@@ -1,149 +1,279 @@
-// src/pages/Productos.jsx
+// src/pages/DetalleProducto.jsx
 import { useEffect, useMemo, useState } from "react";
-import api from "../api"; // 👈 ahora usamos la API REST
-import ProductCard from "../components/ProductCard.jsx";
+import { useParams, Link } from "react-router-dom";
+import { getLiveById, getStockPorTalla } from "../services/inventory.js";
+import { addToCart } from "../services/cart.js";
 
 const CLP = new Intl.NumberFormat("es-CL");
 
-export default function Productos() {
-  const [categoria, setCategoria] = useState("todos");
-  const [precioMax, setPrecioMax] = useState(60000);
+// Helper para resolver la URL de la imagen desde distintos campos
+function resolveImagen(producto) {
+  if (!producto) return "/img/product-placeholder.png";
 
-  const [items, setItems] = useState([]);   // productos desde backend
-  const [error, setError] = useState("");   // para mostrar error si falla la API
+  return (
+    producto.imagen ||
+    producto.imageUrl ||
+    producto.imagenUrl ||
+    (Array.isArray(producto.imagenes) && producto.imagenes[0]) ||
+    (Array.isArray(producto.galeria) && producto.galeria[0]) ||
+    "/img/product-placeholder.png"
+  );
+}
+
+export default function DetalleProducto() {
+  const { id } = useParams();
+
+  const [producto, setProducto] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [tallaSeleccionada, setTallaSeleccionada] = useState("");
+  const [colorSeleccionado, setColorSeleccionado] = useState("");
 
-  // Carga inicial desde la API
+  // Cargar producto: primero intenta API, si no, inventario local
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "auto" });
 
-    const load = async () => {
+    async function cargarProducto() {
+      setLoading(true);
+
+      // 1) Intentar backend Spring Boot
       try {
-        setLoading(true);
-        setError("");
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const resp = await fetch(`${baseUrl}/api/products/${id}`);
 
-        // 👇 Ajusta la ruta según tu backend (/api/productos, /api/products, etc.)
-        const res = await api.get("/api/products");
-
-        // Si el backend devuelve un array directo:
-        setItems(res.data || []);
-
-        // Si fuera paginado tipo { content: [...] }, sería:
-        // setItems(res.data.content || []);
-      } catch (err) {
-        console.error(err);
-        setError("No se pudieron cargar los productos. Intenta más tarde.");
-        setItems([]);
-      } finally {
-        setLoading(false);
+        if (resp.ok) {
+          const data = await resp.json();
+          const normalizado = {
+            ...data,
+            // Normalizamos el campo de imagen al que usa el frontend
+            imagen: resolveImagen(data),
+          };
+          setProducto(normalizado);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        // Ignoramos el error y probamos con inventario local
+        console.warn("No se pudo obtener el producto desde la API:", e);
       }
-    };
 
-    load();
-  }, []);
-
-  // Opciones de categoría = categorías presentes en productos (sin duplicados)
-  const categoriaOptions = useMemo(() => {
-    const set = new Set();
-
-    for (const p of items) {
-      // 👇 Ajusta esta lógica según cómo venga la categoría del backend
-      // Ejemplo 1: p.categoria (string simple)
-      if (p.categoria) set.add(p.categoria);
-
-      // Ejemplo 2 (alternativo si tu backend manda objeto):
-      // if (p.category && p.category.nombre) set.add(p.category.nombre);
+      // 2) Fallback: inventario local (productos.js + localStorage)
+      const local = getLiveById(id);
+      if (local) {
+        setProducto({
+          ...local,
+          imagen: resolveImagen(local),
+        });
+      } else {
+        setProducto(null);
+      }
+      setLoading(false);
     }
 
-    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  }, [items]);
+    cargarProducto();
+  }, [id]);
 
-  // Filtrado por categoría y precio
-  const dataFiltrada = useMemo(() => {
-    return items.filter((p) => {
-      // 👇 Ajusta los campos según tu backend
-      const cat = p.categoria; // o p.category?.nombre
+  // Stock por talla (del inventario local)
+  const stockPorTalla = useMemo(() => {
+    if (!producto) return {};
+    try {
+      return getStockPorTalla(producto.id) || {};
+    } catch {
+      return {};
+    }
+  }, [producto]);
 
-      const precio = Number(p.precio); // o p.price si viene como "price"
+  const totalStock = useMemo(
+    () =>
+      Object.values(stockPorTalla).reduce(
+        (acc, v) => acc + (typeof v === "number" ? v : 0),
+        0
+      ),
+    [stockPorTalla]
+  );
 
-      const okCat = categoria === "todos" ? true : cat === categoria;
-      const okPrecio = precio <= Number(precioMax);
-      return okCat && okPrecio;
+  const sinStock = !producto || totalStock <= 0;
+
+  // Tallas y colores
+  const tallasDisponibles =
+    (producto && producto.tallas && producto.tallas.length > 0
+      ? producto.tallas
+      : Object.keys(stockPorTalla)) || [];
+
+  const coloresDisponibles =
+    (producto && producto.colores && producto.colores.length > 0
+      ? producto.colores
+      : []) || [];
+
+  useEffect(() => {
+    if (tallasDisponibles.length > 0 && !tallaSeleccionada) {
+      setTallaSeleccionada(tallasDisponibles[0]);
+    }
+  }, [tallasDisponibles, tallaSeleccionada]);
+
+  useEffect(() => {
+    if (coloresDisponibles.length > 0 && !colorSeleccionado) {
+      setColorSeleccionado(coloresDisponibles[0]);
+    }
+  }, [coloresDisponibles, colorSeleccionado]);
+
+  const onAddToCart = () => {
+    if (!producto || sinStock) return;
+
+    const res = addToCart({
+      id: producto.id,
+      nombre: producto.nombre,
+      precio: producto.precio,
+      imagen: resolveImagen(producto),
+      cantidad: 1,
+      talla: tallaSeleccionada || "Única",
+      color: colorSeleccionado || "Único",
     });
-  }, [categoria, precioMax, items]);
+
+    window.dispatchEvent(new Event("cart:updated"));
+    alert(`Añadido al carrito. Ítems en carrito: ${res.cantidad}`);
+  };
+
+  // =======================
+  // RENDER
+  // =======================
 
   if (loading) {
     return (
-      <main className="productos-page py-5">
-        <div className="container">
-          <p className="text-light">Cargando productos...</p>
+      <main className="detalle-page py-5 text-light">
+        <div className="container text-center">
+          <p>Cargando producto...</p>
         </div>
       </main>
     );
   }
 
-  if (error) {
+  if (!producto) {
     return (
-      <main className="productos-page py-5">
-        <div className="container">
-          <div className="alert alert-danger">{error}</div>
+      <main className="detalle-page py-5 text-light">
+        <div className="container text-center">
+          <h2 className="mb-3">Producto no encontrado</h2>
+          <Link to="/productos" className="btn btn-outline-light">
+            Volver a productos
+          </Link>
         </div>
       </main>
     );
   }
+
+  const img = resolveImagen(producto);
 
   return (
-    <main className="productos-page py-5">
+    <main className="detalle-page py-5 text-light">
       <div className="container">
-        <h2 className="text-light mb-4">Todos los productos</h2>
-
-        {/* Filtros */}
-        <div className="row g-3 mb-4">
-          <div className="col-md-6">
-            <label className="form-label text-light">Categoría</label>
-            <select
-              className="form-select"
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-            >
-              <option value="todos">Todas</option>
-              {categoriaOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="col-md-6">
-            <label className="form-label text-light d-flex justify-content-between">
-              <span>Precio máximo</span>
-              <strong>${CLP.format(precioMax)}</strong>
-            </label>
-            <input
-              type="range"
-              className="form-range"
-              min="10000"
-              max="60000"
-              step="5000"
-              value={precioMax}
-              onChange={(e) => setPrecioMax(parseInt(e.target.value, 10))}
-            />
-          </div>
-        </div>
-
-        {/* Grid */}
         <div className="row g-4">
-          {dataFiltrada.map((p) => (
-            <div className="col-12 col-sm-6 col-md-4 col-lg-3" key={p.id}>
-              <ProductCard product={p} />
+          {/* Imagen */}
+          <div className="col-md-6">
+            <div className="ratio ratio-1x1 bg-dark-subtle rounded-3 overflow-hidden">
+              <img
+                src={img}
+                alt={producto.nombre}
+                className="w-100 h-100 object-fit-cover"
+                onError={(e) => {
+                  e.currentTarget.src = "/img/product-placeholder.png";
+                }}
+              />
             </div>
-          ))}
-          {dataFiltrada.length === 0 && (
-            <div className="text-center text-secondary py-5">
-              No encontramos productos con los filtros seleccionados.
+          </div>
+
+          {/* Info producto */}
+          <div className="col-md-6 d-flex flex-column">
+            <h1 className="h3 mb-3">{producto.nombre}</h1>
+
+            {producto.descripcion && (
+              <p className="mb-3 text-secondary">{producto.descripcion}</p>
+            )}
+
+            <p className="fs-4 fw-semibold mb-3">
+              ${CLP.format(producto.precio || 0)}
+            </p>
+
+            {/* Stock */}
+            <p className="mb-3">
+              {sinStock ? (
+                <span className="badge text-bg-danger">Sin stock</span>
+              ) : (
+                <span className="badge text-bg-secondary">
+                  Stock total: {totalStock}
+                </span>
+              )}
+            </p>
+
+            {/* Selector de talla */}
+            {tallasDisponibles.length > 0 && (
+              <div className="mb-3">
+                <label className="form-label">Talla</label>
+                <div className="d-flex flex-wrap gap-2">
+                  {tallasDisponibles.map((t) => {
+                    const stockTalla = stockPorTalla[t] ?? 0;
+                    const agotada = stockTalla <= 0;
+
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        className={`btn btn-sm ${
+                          t === tallaSeleccionada
+                            ? "btn-primary"
+                            : "btn-outline-light"
+                        }`}
+                        disabled={agotada}
+                        onClick={() => setTallaSeleccionada(t)}
+                      >
+                        {t} {agotada ? "(Agotada)" : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Selector de color */}
+            {coloresDisponibles.length > 0 && (
+              <div className="mb-3">
+                <label className="form-label">Color</label>
+                <div className="d-flex flex-wrap gap-2">
+                  {coloresDisponibles.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`btn btn-sm ${
+                        c === colorSeleccionado
+                          ? "btn-primary"
+                          : "btn-outline-light"
+                      }`}
+                      onClick={() => setColorSeleccionado(c)}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Botones */}
+            <div className="mt-auto d-flex flex-column flex-sm-row gap-2 pt-3">
+              <button
+                className="btn btn-primary flex-fill"
+                disabled={sinStock}
+                onClick={onAddToCart}
+              >
+                {sinStock ? "Sin stock" : "Añadir al carrito"}
+              </button>
+
+              <Link
+                to="/productos"
+                className="btn btn-outline-light flex-fill"
+              >
+                Volver a productos
+              </Link>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </main>

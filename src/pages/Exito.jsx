@@ -15,7 +15,7 @@ export default function Exito() {
   return (
     <main className="container my-5 text-center">
       <h2>¡Compra realizada con éxito!</h2>
-      <p className="lead">Gracias por tu compra.</p>
+      <p className="lead">Gracias por tu compra, la boleta llegará a tu correo.</p>
       {order && (
         <p>
           Tu número de orden es <strong>{order}</strong>. Puedes ver la boleta en el panel de administración.
@@ -23,7 +23,6 @@ export default function Exito() {
       )}
       <div className="d-flex gap-2 justify-content-center">
         <Link to="/productos" className="btn btn-primary">Seguir comprando</Link>
-        <Link to={order ? `/admin/boleta/${order}` : "/admin/ordenes"} className="btn btn-outline-dark">Ver boleta</Link>
       </div>
     </main>
   );

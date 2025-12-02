@@ -1,108 +1,50 @@
 // src/admin/pages/HistorialCompras.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { listOrders } from "../../services/orders.js";
+import { listOrders } from "../../services/orders.js";   // ahora funciona OK
 
-const USERS_KEY = "stuffies_users";
-const CLP = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-
-function loadUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY) || "[]"); } catch { return []; }
-}
-
-function resolveUserByRouteId(routeId) {
-  const users = loadUsers();
-  if (!routeId) return { user: null, users };
-
-  const n = Number(routeId);
-  if (Number.isFinite(n) && n > 0) {
-    const u = users[n - 1] || null;
-    return { user: u, users };
-  }
-
-  if (routeId.includes("@")) {
-    const u = users.find((x) => (x.email || "").toLowerCase() === routeId.toLowerCase()) || null;
-    return { user: u, users };
-  }
-
-  const u = users.find((x) => (x.user || "").toLowerCase() === routeId.toLowerCase()) || null;
-  return { user: u, users };
-}
+const CLP = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
 
 export default function HistorialCompras() {
-  const { id } = useParams();
-  const [{ user }, setState] = useState({ user: null });
+  const { id } = useParams();  // ID del usuario en la BD
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Cargar usuario y órdenes
+  // ================================
+  // Cargar órdenes desde backend
+  // ================================
   useEffect(() => {
-    const { user: resolved } = resolveUserByRouteId(id);
-    setState({ user: resolved });
-    setOrders(listOrders());
-
-    const onOrdersUpdated = () => setOrders(listOrders());
-    const onStorage = (e) => {
-      if (!e || e.key === null || e.key === "stuffies_orders_v1" || e.key === USERS_KEY) {
-        const r = resolveUserByRouteId(id);
-        setState({ user: r.user });
-        setOrders(listOrders());
+    async function load() {
+      try {
+        const all = await listOrders(); // Admin obtiene TODAS las órdenes
+        setOrders(all);
+      } catch (err) {
+        console.error("Error cargando órdenes:", err);
+      } finally {
+        setLoading(false);
       }
-    };
+    }
 
-    window.addEventListener("orders:updated", onOrdersUpdated);
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener("orders:updated", onOrdersUpdated);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, [id]);
+    load();
+  }, []);
 
-  // Filtro por usuario
+  // ================================
+  // Filtrar por user_id
+  // ================================
   const rows = useMemo(() => {
-    if (!user) return [];
-    const email = (user.email || "").toLowerCase();
-    const fullName = [user.name, user.last].filter(Boolean).join(" ").trim();
-    const uname = (user.user || "").toLowerCase();
+    if (!id) return [];
+    return orders.filter(o => String(o.user?.id || "") === String(id));
+  }, [orders, id]);
 
-    return orders
-      .filter((o) => {
-        const oEmail = (o.cliente?.email || "").toLowerCase();
-        const oName = String(o.cliente?.nombre || o.cliente?.name || "").trim();
-        const oUserMeta = (o.meta?.user || o.cliente?.user || "").toLowerCase();
-
-        // Regla principal: email exacto
-        if (email && oEmail && oEmail === email) return true;
-
-        if (!email && fullName && oName && oName.toLowerCase() === fullName.toLowerCase()) return true;
-
-        if (uname && oUserMeta === uname) return true;
-
-        return false;
-      })
-      .sort((a, b) => {
-        const ta = a.fechaISO ? +new Date(a.fechaISO) : 0;
-        const tb = b.fechaISO ? +new Date(b.fechaISO) : 0;
-        return tb - ta || String(b.id).localeCompare(String(a.id));
-      });
-  }, [user, orders]);
-
-  if (!user) {
-    return (
-      <div>
-        <h2 className="mb-3">Historial de compras</h2>
-        <div className="alert alert-warning">
-          No se encontró el usuario con referencia <strong>{id}</strong>.
-        </div>
-        <Link to="../usuarios" className="btn btn-outline-light">Volver</Link>
-      </div>
-    );
-  }
+  if (loading) return <p>Cargando órdenes...</p>;
 
   return (
     <div>
-      <h2 className="mb-3">
-        Historial de compras — {user.name ? `${user.name} ${user.last || ""}`.trim() : `@${user.user}`}
-      </h2>
+      <h2 className="mb-3">Historial de compras</h2>
 
       <div className="table-responsive">
         <table className="table table-dark table-striped">
@@ -114,6 +56,7 @@ export default function HistorialCompras() {
               <th className="text-end">Acciones</th>
             </tr>
           </thead>
+
           <tbody>
             {rows.length === 0 ? (
               <tr>
@@ -125,10 +68,17 @@ export default function HistorialCompras() {
               rows.map((o) => (
                 <tr key={o.id}>
                   <td>{o.id}</td>
-                  <td>{o.fechaLocal || (o.fechaISO ? new Date(o.fechaISO).toLocaleString("es-CL") : "—")}</td>
-                  <td>{CLP.format(Number(o.totals?.total ?? o.total ?? 0))}</td>
+                  <td>
+                    {o.createdAt
+                      ? new Date(o.createdAt).toLocaleString("es-CL")
+                      : "—"}
+                  </td>
+                  <td>{CLP.format(o.total || 0)}</td>
                   <td className="text-end">
-                    <Link to={`../boleta/${encodeURIComponent(o.id)}`} className="btn btn-sm btn-primary">
+                    <Link
+                      to={`../boleta/${encodeURIComponent(o.id)}`}
+                      className="btn btn-sm btn-primary"
+                    >
                       Ver boleta
                     </Link>
                   </td>

@@ -67,11 +67,7 @@ export default function Sidebar() {
 
         {/* ------------------ CUENTA ------------------ */}
         <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
-          Cuenta
         </div>
-        <NavLink to="/admin/perfil" className={linkCls}>
-          ⚙️ Perfil
-        </NavLink>
       </div>
     </aside>
   );

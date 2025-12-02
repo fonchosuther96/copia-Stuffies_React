@@ -1,9 +1,8 @@
 // src/admin/pages/Ordenes.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listOrders } from "../../services/orders.js";
+import { getAllOrders } from "../../services/orders.js";
 
-const STORAGE_KEY = "stuffies_orders_v1";
 const CLP = new Intl.NumberFormat("es-CL", {
   style: "currency",
   currency: "CLP",
@@ -12,53 +11,44 @@ const CLP = new Intl.NumberFormat("es-CL", {
 
 export default function Ordenes() {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Cargar y escuchar cambios en órdenes (storage + evento custom)
   useEffect(() => {
-    const load = () => setOrders(listOrders());
-    load();
-
-    const onStorage = (e) => {
-      // reaccionar si cambia la key de órdenes o si se limpia todo
-      if (!e || e.key === null || e.key === STORAGE_KEY) load();
-    };
-    const onOrdersUpdated = () => load(); // lo dispara saveAll() en orders.js
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("orders:updated", onOrdersUpdated);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("orders:updated", onOrdersUpdated);
-    };
+    loadOrders();
   }, []);
 
-  // Ya viene ordenado por listOrders(); dejamos memo por compatibilidad
-  const rows = useMemo(() => [...orders], [orders]);
+  const loadOrders = async () => {
+    try {
+      const data = await getAllOrders();
 
-  const badgeClass = (estado = "") => {
-    const e = (estado || "").toLowerCase();
-    if (e.includes("pag")) return "bg-success";                 // Pagado
-    if (e.includes("env")) return "bg-info";                    // Enviado
-    if (e.includes("pend") || e.includes("proc")) return "bg-warning text-dark"; // Pendiente/Procesando
-    if (e.includes("canc") || e.includes("err") || e.includes("rech")) return "bg-danger";
-    return "bg-secondary";
+      // Asegurar que data siempre sea un array
+      const list = Array.isArray(data) ? data : [];
+
+      const fixed = list.map((o) => ({
+        id: o.id,
+        total: o.total ?? 0,
+        createdAt: o.createdAt ?? "—",
+        status: o.status ?? "Pagado",
+        username: o.user?.username ?? "Cliente",
+      }));
+
+      setOrders(fixed);
+    } catch (e) {
+      console.error(e);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const fmtFecha = (o) =>
-    o.fechaLocal || (o.fechaISO ? new Date(o.fechaISO).toLocaleString("es-CL") : "—");
-
-  const fmtCliente = (o) =>
-    o.cliente?.nombre || o.cliente?.name || o.cliente || "—";
-
-  const fmtTotal = (o) =>
-    CLP.format(Number(o.totals?.total ?? o.total ?? 0));
+  if (loading) return <p>Cargando órdenes...</p>;
 
   return (
     <div>
       <h2 className="mb-3">Órdenes / Boletas</h2>
 
       <div className="table-responsive">
-        <table className="table table-dark table-striped align-middle">
+        <table className="table table-dark table-hover">
           <thead>
             <tr>
               <th>Boleta</th>
@@ -69,37 +59,35 @@ export default function Ordenes() {
               <th className="text-end">Acciones</th>
             </tr>
           </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="text-center text-secondary py-4">
-                Aún no hay órdenes registradas.
-              </td>
-            </tr>
-          ) : (
-            rows.map((o) => (
-              <tr key={o.id}>
-                <td>{o.id}</td>
-                <td>{fmtFecha(o)}</td>
-                <td>{fmtCliente(o)}</td>
-                <td>{fmtTotal(o)}</td>
-                <td>
-                  <span className={`badge ${badgeClass(o.estado)}`}>
-                    {o.estado || "—"}
-                  </span>
-                </td>
-                <td className="text-end">
-                  <Link
-                    to={`../boleta/${encodeURIComponent(o.id)}`}
-                    className="btn btn-sm btn-primary"
-                  >
-                    Mostrar boleta
-                  </Link>
+
+          <tbody>
+            {orders.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="text-center py-4">
+                  Aún no hay órdenes registradas.
                 </td>
               </tr>
-            ))
-          )}
-        </tbody>
+            ) : (
+              orders.map((o) => (
+                <tr key={o.id}>
+                  <td>{o.id}</td>
+                  <td>{o.createdAt}</td>
+                  <td>{o.username}</td>
+                  <td>{CLP.format(o.total)}</td>
+                  <td>{o.status}</td>
+
+                  <td className="text-end">
+                    <Link
+                      className="btn btn-sm btn-primary"
+                      to={`/admin/boleta/${o.id}`}
+                    >
+                      Ver detalle
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
         </table>
       </div>
     </div>

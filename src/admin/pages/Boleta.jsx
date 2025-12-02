@@ -1,5 +1,5 @@
 // src/admin/pages/Boleta.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getOrderById } from "../../services/orders.js";
 
@@ -10,24 +10,26 @@ const CLP = new Intl.NumberFormat("es-CL", {
 });
 
 export default function Boleta() {
-  const { id } = useParams(); 
+  const { id } = useParams();
   const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = () => setOrder(getOrderById(String(id)));
+    async function load() {
+      try {
+        const data = await getOrderById(id);
+        setOrder(data);
+      } catch (e) {
+        console.error("Error cargando boleta:", e);
+        setOrder(null);
+      } finally {
+        setLoading(false);
+      }
+    }
     load();
-
-    // se actualiza si otra vista crea/modifica órdenes
-    const onOrdersUpdated = () => load();
-    window.addEventListener("orders:updated", onOrdersUpdated);
-    return () => window.removeEventListener("orders:updated", onOrdersUpdated);
   }, [id]);
 
-  const totales = useMemo(() => {
-    if (!order || !order.totals) return { subtotal: 0, impuestos: 0, total: 0 };
-    const { subtotal = 0, impuestos = 0, total = 0 } = order.totals;
-    return { subtotal: Number(subtotal), impuestos: Number(impuestos), total: Number(total) };
-  }, [order]);
+  if (loading) return <p>Cargando boleta...</p>;
 
   if (!order) {
     return (
@@ -38,22 +40,21 @@ export default function Boleta() {
     );
   }
 
-  const fechaStr = order.fechaLocal
-    ? order.fechaLocal
-    : order.fechaISO
-    ? new Date(order.fechaISO).toLocaleString("es-CL")
-    : "—";
-
-  const clienteNombre = order.cliente?.nombre || "—";
-  const clienteEmail = order.cliente?.email || "—";
-  const clienteDir = order.cliente?.direccion || "—";
+  // Cliente
+  const clienteNombre = order.user?.username || "Cliente invitado";
+  const clienteEmail = "—";    // tu backend no lo envía
+  const clienteDir = "—";      // tampoco envía dirección
+  const fechaStr = "—";        // no tienes fecha en BD
+  const estado = "Pagado";     // ya que no guardas estado
 
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="m-0">Boleta / {order.id}</h2>
         <div className="d-flex gap-2">
-          <button className="btn btn-outline-light" onClick={() => window.print()}>Imprimir</button>
+          <button className="btn btn-outline-light" onClick={() => window.print()}>
+            Imprimir
+          </button>
           <Link to="../ordenes" className="btn btn-primary">Volver</Link>
         </div>
       </div>
@@ -61,35 +62,41 @@ export default function Boleta() {
       <div className="card bg-dark border-light">
         <div className="card-body">
           <div className="row g-3">
+
+            {/* DATOS DEL CLIENTE */}
             <div className="col-md-6">
               <h5 className="mb-3">Datos del cliente</h5>
+
               <p className="m-0"><strong>Nombre:</strong> {clienteNombre}</p>
               <p className="m-0"><strong>Email:</strong> {clienteEmail}</p>
               <p className="m-0"><strong>Dirección:</strong> {clienteDir}</p>
               <p className="m-0"><strong>Fecha:</strong> {fechaStr}</p>
-              <p className="m-0"><strong>Estado:</strong> {order.estado || "—"}</p>
+              <p className="m-0"><strong>Estado:</strong> {estado}</p>
             </div>
 
+            {/* DETALLE DE PRODUCTOS */}
             <div className="col-md-6">
               <h5 className="mb-3">Detalle</h5>
               <ul className="m-0">
                 {(order.items || []).map((it, i) => {
-                  const attrs = [it.talla, it.color].filter(Boolean).join(", ");
-                  const subtotalItem = Number(it.precio || 0) * Number(it.cantidad || 0);
+                  const nombre = it.product?.nombre || "Producto";
+                  const subtotal = Number(it.precio) * Number(it.cantidad);
+
                   return (
                     <li key={`${it.id}-${i}`}>
-                      {it.nombre}
-                      {attrs ? ` (${attrs})` : ""} — {CLP.format(Number(it.precio || 0))} × {Number(it.cantidad || 0)} ={" "}
-                      <strong>{CLP.format(Number(it.subtotal ?? subtotalItem))}</strong>
+                      {nombre} — {CLP.format(it.precio)} × {it.cantidad} ={" "}
+                      <strong>{CLP.format(subtotal)}</strong>
                     </li>
                   );
                 })}
               </ul>
+
               <hr />
-              <p className="m-0"><strong>Subtotal:</strong> {CLP.format(totales.subtotal)}</p>
-              <p className="m-0"><strong>Impuestos:</strong> {CLP.format(totales.impuestos)}</p>
-              <p className="m-0"><strong>Total:</strong> {CLP.format(totales.total)}</p>
+              <p className="m-0">
+                <strong>Total:</strong> {CLP.format(order.total || 0)}
+              </p>
             </div>
+
           </div>
         </div>
       </div>

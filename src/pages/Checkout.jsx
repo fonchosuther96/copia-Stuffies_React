@@ -6,7 +6,11 @@ import { createOrder } from "../services/orders.js";
 
 const SESSION_KEY = "stuffies_session";
 const getSession = () => {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch { return null; }
+  try {
+    return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
+  } catch {
+    return null;
+  }
 };
 
 // -------- Validadores --------
@@ -14,26 +18,30 @@ const rules = {
   nombre: (v) => {
     const val = String(v || "").trim();
     if (!val) return "Ingresa tu nombre completo.";
-    if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]{3,60}$/.test(val)) return "Solo letras/espacios (3–60).";
+    if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]{3,60}$/.test(val))
+      return "Solo letras/espacios (3–60).";
     return "";
   },
   direccion: (v) => {
     const val = String(v || "").trim();
     if (!val) return "Ingresa tu dirección.";
-    if (!/^[\wÁÉÍÓÚÑáéíóúñ\s\.\-#]{5,120}$/.test(val)) return "Dirección inválida (5–120).";
+    if (!/^[\wÁÉÍÓÚÑáéíóúñ\s.\-#]{5,120}$/.test(val))
+      return "Dirección inválida (5–120).";
     return "";
   },
   comuna: (v) => {
     const val = String(v || "").trim();
     if (!val) return "Ingresa tu comuna.";
-    if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]{3,40}$/.test(val)) return "Solo letras/espacios (3–40).";
+    if (!/^[A-Za-zÁÉÍÓÚÑáéíóúñ\s]{3,40}$/.test(val))
+      return "Solo letras/espacios (3–40).";
     return "";
   },
   telefono: (v) => {
     const val = String(v || "").trim();
     if (!val) return "Ingresa tu teléfono.";
     // +569XXXXXXXX  |  56 9 XXXXXXXX  |  9XXXXXXXX
-    if (!/^(\+?56\s?9\d{8}|9\d{8})$/.test(val)) return "Formato válido: +569XXXXXXXX o 9XXXXXXXX.";
+    if (!/^(\+?56\s?9\d{8}|9\d{8})$/.test(val))
+      return "Formato válido: +569XXXXXXXX o 9XXXXXXXX.";
     return "";
   },
 };
@@ -49,25 +57,35 @@ const validateAll = (form) => {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nombre: "", direccion: "", comuna: "", telefono: "" });
+
+  const [form, setForm] = useState({
+    nombre: "",
+    direccion: "",
+    comuna: "",
+    telefono: "",
+  });
   const [touched, setTouched] = useState({});
   const [errors, setErrors] = useState({});
   const [flash, setFlash] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   const cart = getCart();
   const totals = useMemo(() => getCartTotals(), [cart]);
 
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  // scroll arriba
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const setField = (name, value) => {
     setForm((f) => ({ ...f, [name]: value }));
-    // valida campo al escribir si ya fue tocado
     if (touched[name]) {
       setErrors((er) => ({ ...er, [name]: rules[name](value) }));
     }
   };
 
   const onChange = (e) => setField(e.target.name, e.target.value);
+
   const onBlur = (e) => {
     const { name, value } = e.target;
     setTouched((t) => ({ ...t, [name]: true }));
@@ -75,9 +93,15 @@ export default function Checkout() {
   };
 
   const cls = (name) =>
-    `form-control ${touched[name] && errors[name] ? "is-invalid" : touched[name] && !errors[name] ? "is-valid" : ""}`;
+    `form-control ${
+      touched[name] && errors[name]
+        ? "is-invalid"
+        : touched[name] && !errors[name]
+        ? "is-valid"
+        : ""
+    }`;
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
 
     if (!cart.length) {
@@ -85,25 +109,37 @@ export default function Checkout() {
       return;
     }
 
-    // valida todo
+    // validar todo
     const eAll = validateAll(form);
     setErrors(eAll);
-    setTouched({ nombre: true, direccion: true, comuna: true, telefono: true });
+    setTouched({
+      nombre: true,
+      direccion: true,
+      comuna: true,
+      telefono: true,
+    });
+
     if (Object.keys(eAll).length) {
-      setFlash({ type: "warning", text: "Revisa los campos marcados en rojo." });
+      setFlash({
+        type: "warning",
+        text: "Revisa los campos marcados en rojo.",
+      });
       return;
     }
 
     const session = getSession();
-    const id = createOrder({
+
+    const payload = {
       cliente: {
-        nombre: session?.nombre || form.nombre,
+        // si más adelante guardas nombre/email en la sesión,
+        // esto los usará automáticamente
+        nombre: session?.nombre || session?.username || form.nombre,
         email: session?.email || "",
         direccion: `${form.direccion}, ${form.comuna}`,
         telefono: form.telefono,
       },
       items: cart.map((it) => ({
-        id: it.id,
+        productId: it.id,
         nombre: it.nombre,
         talla: it.talla,
         color: it.color,
@@ -111,14 +147,37 @@ export default function Checkout() {
         cantidad: Number(it.cantidad),
         imagen: it.imagen,
       })),
-      pago: { metodo: "checkout" },
-      meta: {},
-      estado: "Pagado",
-    });
+      total: totals.subtotal ?? totals.total ?? 0,
+      estado: "PAGADO",
+      medioPago: "WEB",
+    };
 
-    clearCart();
-    navigate(`/exito?order=${encodeURIComponent(id)}`);
+    try {
+      setSaving(true);
+      const res = await createOrder(payload); // 👈 ahora va al backend
+
+      clearCart();
+
+      const orderId = res?.id ?? res?.orderId ?? "";
+      if (orderId) {
+        navigate(`/exito?order=${encodeURIComponent(orderId)}`);
+      } else {
+        navigate("/exito");
+      }
+    } catch (err) {
+      console.error(err);
+      setFlash({
+        type: "danger",
+        text: "No se pudo registrar la compra. Intenta nuevamente.",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const totalCLP = (totals.subtotal ?? totals.total ?? 0).toLocaleString(
+    "es-CL"
+  );
 
   return (
     <main className="container my-5">
@@ -132,11 +191,18 @@ export default function Checkout() {
 
       <div className="row g-4">
         <div className="col-12 col-lg-7">
-          <form noValidate onSubmit={onSubmit} className="card card-body bg-dark text-light">
+          <form
+            noValidate
+            onSubmit={onSubmit}
+            className="card card-body bg-dark text-light"
+          >
             <h5 className="mb-3">Datos de envío</h5>
+
             <div className="row g-3">
               <div className="col-12">
-                <label className="form-label" htmlFor="nombre">Nombre completo *</label>
+                <label className="form-label" htmlFor="nombre">
+                  Nombre completo *
+                </label>
                 <input
                   id="nombre"
                   name="nombre"
@@ -149,10 +215,15 @@ export default function Checkout() {
                   autoComplete="name"
                   required
                 />
-                <div className="invalid-feedback">{errors.nombre || " "}</div>
+                <div className="invalid-feedback">
+                  {errors.nombre || " "}
+                </div>
               </div>
+
               <div className="col-12">
-                <label className="form-label" htmlFor="direccion">Dirección *</label>
+                <label className="form-label" htmlFor="direccion">
+                  Dirección *
+                </label>
                 <input
                   id="direccion"
                   name="direccion"
@@ -165,10 +236,15 @@ export default function Checkout() {
                   autoComplete="address-line1"
                   required
                 />
-                <div className="invalid-feedback">{errors.direccion || " "}</div>
+                <div className="invalid-feedback">
+                  {errors.direccion || " "}
+                </div>
               </div>
+
               <div className="col-12 col-md-6">
-                <label className="form-label" htmlFor="comuna">Comuna *</label>
+                <label className="form-label" htmlFor="comuna">
+                  Comuna *
+                </label>
                 <input
                   id="comuna"
                   name="comuna"
@@ -181,10 +257,15 @@ export default function Checkout() {
                   autoComplete="address-level2"
                   required
                 />
-                <div className="invalid-feedback">{errors.comuna || " "}</div>
+                <div className="invalid-feedback">
+                  {errors.comuna || " "}
+                </div>
               </div>
+
               <div className="col-12 col-md-6">
-                <label className="form-label" htmlFor="telefono">Teléfono *</label>
+                <label className="form-label" htmlFor="telefono">
+                  Teléfono *
+                </label>
                 <input
                   id="telefono"
                   name="telefono"
@@ -197,13 +278,25 @@ export default function Checkout() {
                   autoComplete="tel"
                   required
                 />
-                <div className="invalid-feedback">{errors.telefono || " "}</div>
+                <div className="invalid-feedback">
+                  {errors.telefono || " "}
+                </div>
               </div>
             </div>
 
             <div className="mt-4 d-flex gap-2">
-              <button className="btn btn-primary" type="submit">Confirmar compra</button>
-              <button className="btn btn-outline-light" type="button" onClick={() => navigate("/carrito")}>
+              <button
+                className="btn btn-primary"
+                type="submit"
+                disabled={saving}
+              >
+                {saving ? "Procesando..." : "Confirmar compra"}
+              </button>
+              <button
+                className="btn btn-outline-light"
+                type="button"
+                onClick={() => navigate("/carrito")}
+              >
                 Volver al carrito
               </button>
             </div>
@@ -213,21 +306,33 @@ export default function Checkout() {
         <div className="col-12 col-lg-5">
           <div className="card card-body bg-dark-subtle">
             <h5 className="mb-3">Resumen</h5>
+
             {!cart.length ? (
               <p>No hay productos.</p>
             ) : (
               <>
                 <ul className="list-group list-group-flush mb-3">
                   {cart.map((it, i) => (
-                    <li key={i} className="list-group-item bg-transparent d-flex justify-content-between">
-                      <span>{it.nombre} × {it.cantidad}</span>
-                      <span>${(it.precio * it.cantidad).toLocaleString("es-CL")}</span>
+                    <li
+                      key={i}
+                      className="list-group-item bg-transparent d-flex justify-content-between"
+                    >
+                      <span>
+                        {it.nombre} × {it.cantidad}
+                      </span>
+                      <span>
+                        $
+                        {(Number(it.precio) * Number(it.cantidad)).toLocaleString(
+                          "es-CL"
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
+
                 <div className="d-flex justify-content-between fw-bold">
                   <span>Total</span>
-                  <span>{totals.totalCLP}</span>
+                  <span>${totalCLP}</span>
                 </div>
               </>
             )}

@@ -1,10 +1,11 @@
 // src/services/auth.js
 import api from "../api";
 
-const SESSION_KEY = "stuffies_session";
+// MISMAS CLAVES QUE AuthContext.jsx
+const SESSION_KEY = "session";
 const TOKEN_KEY = "token";
 
-// Leer sesión desde localStorage
+// Leer sesión
 export function getSession() {
   try {
     return JSON.parse(localStorage.getItem(SESSION_KEY) || "null");
@@ -13,51 +14,34 @@ export function getSession() {
   }
 }
 
-// Guardar sesión y notificar cambios
+// Guardar sesión unificada
 export function setSession(data) {
-  // guardamos toda la info de la sesión
-  localStorage.setItem(SESSION_KEY, JSON.stringify(data));
-
-  // además guardamos solo el token en una clave aparte
-  // para que api.js pueda leerlo y ponerlo en Authorization
-  if (data?.token) {
-    localStorage.setItem(TOKEN_KEY, data.token);
-  } else {
+  if (!data) {
+    localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(TOKEN_KEY);
+  } else {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+    localStorage.setItem(TOKEN_KEY, data.token);
   }
 
-  try {
-    window.dispatchEvent(new Event("session:updated"));
-  } catch {
-    // ignorar
-  }
+  // notificar actualización
+  window.dispatchEvent(new Event("session:updated"));
 }
 
 // Borrar sesión
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(TOKEN_KEY);
-
-  try {
-    window.dispatchEvent(new Event("session:updated"));
-  } catch {
-    // ignorar
-  }
+  window.dispatchEvent(new Event("session:updated"));
 }
 
-// === LOGIN contra el backend Spring Boot ===
-// Llama a POST http://localhost:8080/auth/login
+// === LOGIN contra backend ===
 export async function login({ username, password }) {
-  const resp = await api.post("/auth/login", {
-    username,
-    password,
-  });
+  const resp = await api.post("/auth/login", { username, password });
 
-  // El backend puede devolver:
-  // { token, username, role }  o  { token, username, roles: ["ROLE_ADMIN", ...] }
-  const { token, username: user, role, roles } = resp.data;
+  const { token, username: u, role, roles } = resp.data;
 
-  // Normalizamos a un array 'roles'
+  // normalizar roles
   const normalizedRoles = Array.isArray(roles)
     ? roles
     : role
@@ -65,8 +49,8 @@ export async function login({ username, password }) {
     : [];
 
   const sessionData = {
-    username: user,
-    roles: normalizedRoles, // siempre array
+    username: u,
+    roles: normalizedRoles,
     token,
   };
 
@@ -74,7 +58,7 @@ export async function login({ username, password }) {
   return sessionData;
 }
 
-// ---- Helpers extra útiles ----
+// Helpers
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -84,13 +68,10 @@ export function isLoggedIn() {
 }
 
 export function getCurrentUser() {
-  const session = getSession();
-  if (!session) return null;
-  return { username: session.username, roles: session.roles || [] };
+  return getSession();
 }
 
-// ¿Es admin?
 export function isAdmin() {
-  const session = getSession();
-  return Array.isArray(session?.roles) && session.roles.includes("ROLE_ADMIN");
+  const s = getSession();
+  return s?.roles?.includes("ROLE_ADMIN") || false;
 }

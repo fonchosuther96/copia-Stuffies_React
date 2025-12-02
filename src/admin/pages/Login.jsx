@@ -1,10 +1,13 @@
 // src/pages/Loginjsx.jsx
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
-import { login } from "../services/authjs";
+import { login as loginService } from "../services/authjs";
+import { AuthContext } from "../context/AuthContext";
 
 function Loginjsx() {
+
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -17,14 +20,19 @@ function Loginjsx() {
     setLoading(true);
 
     try {
-      const session = await login({ username, password });
-      // session = { username, nombre, email, role, avatar, token }
+      // resp = { token, username, role }
+      const resp = await loginService({ username, password });
 
-      if (session.role === "ADMIN") {
-        navigate("/admin"); // ajusta si tu ruta admin es otra
+      // Guardamos sesión usando AuthContext (que usa keys: session, token)
+      login(resp);
+
+      // Redirección por rol
+      if (resp.role === "ROLE_ADMIN") {
+        navigate("/admin");
       } else {
-        navigate("/"); // o "/home"
+        navigate("/");
       }
+
     } catch (err) {
       console.error(err);
       setError("Usuario o contraseña incorrectos");

@@ -43,6 +43,7 @@ export default function Carrito() {
 
   const onCheckout = useCallback(() => {
     if (!Array.isArray(items) || items.length === 0) return;
+    // 👇 aquí NO se exige login, solo vamos a /checkout
     navigate("/checkout");
   }, [navigate, items]);
 
@@ -55,7 +56,9 @@ export default function Carrito() {
       {safeItems.length === 0 ? (
         <div className="text-center py-5">
           <p className="mb-3">Tu carrito está vacío.</p>
-          <Link to="/productos" className="btn btn-primary">Ver productos</Link>
+          <Link to="/productos" className="btn btn-primary">
+            Ver productos
+          </Link>
         </div>
       ) : (
         <>
@@ -77,21 +80,33 @@ export default function Carrito() {
                   const subtotal = precio * cantidad;
 
                   return (
-                    <tr key={`${it.id}-${it.talla ?? ""}-${it.color ?? ""}-${i}`}>
+                    <tr
+                      key={`${it.id}-${it.talla ?? ""}-${it.color ?? ""}-${i}`}
+                    >
                       <td>
                         <div className="d-flex align-items-center gap-3">
                           {it.imagen ? (
                             <img
                               src={it.imagen}
                               alt={it.nombre}
-                              style={{ width: 56, height: 56, objectFit: "cover", borderRadius: 8 }}
+                              style={{
+                                width: 56,
+                                height: 56,
+                                objectFit: "cover",
+                                borderRadius: 8,
+                              }}
                             />
                           ) : (
                             <div
                               style={{
-                                width: 56, height: 56, borderRadius: 8,
-                                background: "#2b2f33", display: "grid",
-                                placeItems: "center", fontSize: 10, opacity: .7
+                                width: 56,
+                                height: 56,
+                                borderRadius: 8,
+                                background: "#2b2f33",
+                                display: "grid",
+                                placeItems: "center",
+                                fontSize: 10,
+                                opacity: 0.7,
                               }}
                             >
                               Sin imagen
@@ -101,7 +116,6 @@ export default function Carrito() {
                           <div>
                             <div className="fw-semibold">{it.nombre}</div>
 
-                            {/* Variante comprada */}
                             <div className="d-flex flex-wrap gap-2 mt-1">
                               <span className="badge bg-secondary">
                                 Talla: {it.talla ?? "—"}
@@ -142,11 +156,17 @@ export default function Carrito() {
               </tbody>
               <tfoot>
                 <tr>
-                  <td colSpan={2} className="text-end fw-semibold">Total ítems:</td>
-                  <td colSpan={3} className="fw-bold">{totals.cantidad}</td>
+                  <td colSpan={2} className="text-end fw-semibold">
+                    Total ítems:
+                  </td>
+                  <td colSpan={3} className="fw-bold">
+                    {totals.cantidad}
+                  </td>
                 </tr>
                 <tr>
-                  <td colSpan={2} className="text-end fw-semibold">Total a pagar:</td>
+                  <td colSpan={2} className="text-end fw-semibold">
+                    Total a pagar:
+                  </td>
                   <td colSpan={3} className="fw-bold">
                     ${totals.subtotal.toLocaleString("es-CL")}
                   </td>

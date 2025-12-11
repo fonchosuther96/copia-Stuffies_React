@@ -20,6 +20,9 @@ import Fallo from "../pages/Fallo.jsx";
 import Categorias from "../pages/Categorias.jsx";
 import Ofertas from "../pages/Ofertas.jsx";
 
+// 🔥 Boleta pública
+import Boleta from "../pages/Boleta.jsx";
+
 export const publicRoutes = [
   {
     path: "/",
@@ -35,7 +38,7 @@ export const publicRoutes = [
       { path: "categorias", element: <Categorias /> },
       { path: "ofertas", element: <Ofertas /> },
 
-      // Checkout protegido: solo usuarios autenticados
+      // Checkout protegido
       {
         path: "checkout",
         element: (
@@ -49,12 +52,15 @@ export const publicRoutes = [
       { path: "exito", element: <Exito /> },
       { path: "fallo", element: <Fallo /> },
 
+      // 🔥 BOLETA PÚBLICA DESPUÉS DE LA COMPRA
+      { path: "boleta/:id", element: <Boleta /> },
+
       // Contenidos
       { path: "blogs", element: <Blogs /> },
       { path: "nosotros", element: <Nosotros /> },
       { path: "contacto", element: <Contacto /> },
 
-      // Auth / Usuario
+      // Auth
       { path: "login", element: <Login /> },
       { path: "registro", element: <Registro /> },
       { path: "carrito", element: <Carrito /> },

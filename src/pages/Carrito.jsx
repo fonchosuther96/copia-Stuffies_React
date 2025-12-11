@@ -11,39 +11,55 @@ import {
 
 export default function Carrito() {
   const navigate = useNavigate();
-  const [items, setItems] = useState(() => getCart());
 
+  // Sanitizamos el carrito inicial
+  const [items, setItems] = useState(() => {
+    const c = getCart();
+    return Array.isArray(c) ? c : [];
+  });
+
+  // Sincronización global del carrito
   useEffect(() => {
-    const sync = () => setItems(getCart());
+    const sync = () => {
+      const c = getCart();
+      setItems(Array.isArray(c) ? c : []);
+    };
+
     sync();
     window.addEventListener("storage", sync);
     window.addEventListener("cart:updated", sync);
+
     return () => {
       window.removeEventListener("storage", sync);
       window.removeEventListener("cart:updated", sync);
     };
   }, []);
 
+  // Totales del carrito
   const totals = useMemo(() => getCartTotals(), [items]);
 
+  // Cambiar cantidad
   const onQtyChange = useCallback((item, value) => {
-    updateQuantity(item, value);
+    const cantidad = Math.max(1, parseInt(value || "1", 10));
+    updateQuantity(item, cantidad);
     setItems(getCart());
   }, []);
 
+  // Quitar producto
   const onRemove = useCallback((item) => {
     removeFromCart(item);
     setItems(getCart());
   }, []);
 
+  // Vaciar carrito
   const onClear = useCallback(() => {
     clearCart();
     setItems([]);
   }, []);
 
+  // Ir al checkout
   const onCheckout = useCallback(() => {
-    if (!Array.isArray(items) || items.length === 0) return;
-    // 👇 aquí NO se exige login, solo vamos a /checkout
+    if (!items.length) return;
     navigate("/checkout");
   }, [navigate, items]);
 
@@ -73,16 +89,15 @@ export default function Carrito() {
                   <th style={{ width: 80 }}></th>
                 </tr>
               </thead>
+
               <tbody>
                 {safeItems.map((it, i) => {
                   const precio = Number(it.precio) || 0;
-                  const cantidad = Number(it.cantidad) || 0;
+                  const cantidad = Number(it.cantidad) || 1;
                   const subtotal = precio * cantidad;
 
                   return (
-                    <tr
-                      key={`${it.id}-${it.talla ?? ""}-${it.color ?? ""}-${i}`}
-                    >
+                    <tr key={`${it.id}-${it.talla || "u"}-${it.color || "u"}-${i}`}>
                       <td>
                         <div className="d-flex align-items-center gap-3">
                           {it.imagen ? (
@@ -94,6 +109,9 @@ export default function Carrito() {
                                 height: 56,
                                 objectFit: "cover",
                                 borderRadius: 8,
+                              }}
+                              onError={(e) => {
+                                e.target.src = "/img/placeholder-producto.png";
                               }}
                             />
                           ) : (
@@ -115,7 +133,6 @@ export default function Carrito() {
 
                           <div>
                             <div className="fw-semibold">{it.nombre}</div>
-
                             <div className="d-flex flex-wrap gap-2 mt-1">
                               <span className="badge bg-secondary">
                                 Talla: {it.talla ?? "—"}
@@ -142,6 +159,7 @@ export default function Carrito() {
 
                       <td>${precio.toLocaleString("es-CL")}</td>
                       <td>${subtotal.toLocaleString("es-CL")}</td>
+
                       <td>
                         <button
                           className="btn btn-outline-danger btn-sm"
@@ -154,6 +172,7 @@ export default function Carrito() {
                   );
                 })}
               </tbody>
+
               <tfoot>
                 <tr>
                   <td colSpan={2} className="text-end fw-semibold">
@@ -179,6 +198,7 @@ export default function Carrito() {
             <button className="btn btn-outline-secondary" onClick={onClear}>
               Vaciar carrito
             </button>
+
             <button className="btn btn-primary" onClick={onCheckout}>
               Finalizar compra
             </button>

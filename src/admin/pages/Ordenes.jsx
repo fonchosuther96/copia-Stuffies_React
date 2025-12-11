@@ -1,4 +1,3 @@
-// src/admin/pages/Ordenes.jsx
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAllOrders } from "../../services/orders.js";
@@ -20,17 +19,21 @@ export default function Ordenes() {
   const loadOrders = async () => {
     try {
       const data = await getAllOrders();
-
-      // Asegurar que data siempre sea un array
       const list = Array.isArray(data) ? data : [];
 
-      const fixed = list.map((o) => ({
-        id: o.id,
-        total: o.total ?? 0,
-        createdAt: o.createdAt ?? "—",
-        status: o.status ?? "Pagado",
-        username: o.user?.username ?? "Cliente",
-      }));
+      const fixed = list.map((o) => {
+        const fecha = o.fechaCreacion
+          ? new Date(o.fechaCreacion).toLocaleString("es-CL")
+          : "—";
+
+        return {
+          id: o.id,
+          total: o.total ?? 0,
+          fecha,
+          estado: o.estado ?? "Pagado",
+          cliente: o.clienteNombre || o.user?.username || "Cliente",
+        };
+      });
 
       setOrders(fixed);
     } catch (e) {
@@ -71,10 +74,10 @@ export default function Ordenes() {
               orders.map((o) => (
                 <tr key={o.id}>
                   <td>{o.id}</td>
-                  <td>{o.createdAt}</td>
-                  <td>{o.username}</td>
+                  <td>{o.fecha}</td>
+                  <td>{o.cliente}</td>
                   <td>{CLP.format(o.total)}</td>
-                  <td>{o.status}</td>
+                  <td>{o.estado}</td>
 
                   <td className="text-end">
                     <Link

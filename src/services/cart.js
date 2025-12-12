@@ -3,7 +3,10 @@ import { productos } from "./productos.js";
 
 const CART_KEY = "stuffies_cart_v1";
 
-// -------- util --------
+/* ============================
+   UTILIDADES INTERNAS
+============================ */
+
 function readRaw() {
   try {
     const raw = localStorage.getItem(CART_KEY);
@@ -38,7 +41,10 @@ function sameVariant(a, b) {
   return a.id === b.id && a.talla === b.talla && a.color === b.color;
 }
 
-// -------- API --------
+/* ============================
+      API DEL CARRITO
+============================ */
+
 export function getCart() {
   return readRaw().map((it) => ({
     id: it.id,
@@ -59,23 +65,24 @@ export function clearCart() {
   writeRaw([]);
 }
 
-/**
- * addToCart(producto, opts)
- * - Acepta el objeto completo del catálogo o { id }.
- * - Toma talla/color desde opts; si no vienen, usa producto.talla / producto.color.
- */
+/* ===================================================
+  addToCart(producto, opts)
+  - Limpio, estable, ya no retorna nada 
+  - Solo actualiza el carrito
+=================================================== */
+
 export function addToCart(producto, opts = {}) {
   if (!producto || typeof producto.id === "undefined") {
     throw new Error("addToCart: producto inválido");
   }
 
-  // Fuente de verdad del catálogo
+  // Buscar en el catálogo base
   const fromDB = productos.find((p) => p.id === Number(producto.id));
   const base = { ...(fromDB || {}), ...producto };
 
   const talla = opts.talla ?? producto.talla ?? null;
   const color = opts.color ?? producto.color ?? null;
-  const cantidad = num(opts.cantidad ?? 1, 1);
+  const cantidad = num(opts.cantidad ?? producto.cantidad ?? 1, 1);
 
   const item = {
     id: base.id,
@@ -99,20 +106,33 @@ export function addToCart(producto, opts = {}) {
   writeRaw(cart);
 }
 
+/* ============================
+  Actualizar cantidad
+============================ */
+
 export function updateQuantity(target, cantidad) {
   const qty = Math.max(1, num(cantidad, 1));
   const cart = getCart();
   const idx = cart.findIndex((it) => sameVariant(it, target));
+
   if (idx >= 0) {
     cart[idx].cantidad = qty;
     writeRaw(cart);
   }
 }
 
+/* ============================
+  Remover ítem
+============================ */
+
 export function removeFromCart(target) {
   const cart = getCart().filter((it) => !sameVariant(it, target));
   writeRaw(cart);
 }
+
+/* ============================
+  Totales
+============================ */
 
 export function getCartTotals() {
   const items = getCart();

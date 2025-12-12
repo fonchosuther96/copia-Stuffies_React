@@ -1,16 +1,13 @@
 // src/components/ProductCard.jsx
 import { Link } from "react-router-dom";
-import { getTotalStock } from "../services/inventory.js";
-import { addToCart } from "../services/cart.js";
 import { useState, useEffect, useMemo } from "react";
 
 const CLP = new Intl.NumberFormat("es-CL");
-
-// fallback
 const FALLBACK_IMG = "/img/placeholder-producto.png";
 
 export default function ProductCard({ product }) {
-  const stockTotal = getTotalStock(product.id);
+  // Calcular el stock total por cada talla
+  const stockTotal = product.variants?.reduce((total, variant) => total + variant.stock, 0) || 0;
   const sinStock = stockTotal <= 0;
 
   const baseImg = useMemo(() => {
@@ -37,24 +34,8 @@ export default function ProductCard({ product }) {
 
   const [img, setImg] = useState(baseImg);
 
-  const primeraTalla = (product.tallas && product.tallas[0]) || "Única";
-  const primerColor = (product.colores && product.colores[0]) || "Único";
-
-  const onAdd = () => {
-    if (sinStock) return;
-
-    addToCart({
-      id: product.id,
-      nombre: product.nombre,
-      precio: product.precio,
-      imagen: baseImg,
-      cantidad: 1,
-      talla: primeraTalla,
-      color: primerColor,
-    });
-
-    window.dispatchEvent(new Event("cart:updated"));
-  };
+  // Lógica para obtener la primera talla de las tallas disponibles
+  const primeraTalla = (product.tallas && typeof product.tallas === 'string' ? product.tallas.split(",")[0] : "Única");
 
   useEffect(() => {
     setImg(baseImg);
@@ -89,27 +70,13 @@ export default function ProductCard({ product }) {
 
         <p className="card-text mb-2">${CLP.format(product.precio)}</p>
 
-        <span
-          className={`badge ${
-            sinStock ? "text-bg-danger" : "text-bg-secondary"
-          } mb-2`}
-        >
-          {sinStock ? "Agotado" : `Stock: ${stockTotal}`}
-        </span>
-
         <div className="mt-auto d-flex flex-column gap-2">
-          <Link to={`/detalle-producto/${product.id}`} className="btn btn-outline-light w-100">
+          <Link
+            to={`/detalle-producto/${product.id}`}
+            className="btn btn-outline-light w-100"
+          >
             Ver detalle
           </Link>
-
-          <button
-            className="btn btn-primary w-100"
-            onClick={onAdd}
-            disabled={sinStock}
-            style={sinStock ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
-          >
-            {sinStock ? "Sin stock" : "Añadir"}
-          </button>
         </div>
       </div>
     </div>

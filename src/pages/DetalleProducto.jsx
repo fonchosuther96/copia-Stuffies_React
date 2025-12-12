@@ -1,4 +1,3 @@
-// src/pages/DetalleProducto.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getLiveById, getStockPorTalla } from "../services/inventory.js";
@@ -28,6 +27,7 @@ export default function DetalleProducto() {
   const [loading, setLoading] = useState(true);
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
   const [colorSeleccionado, setColorSeleccionado] = useState("");
+  const [stockPorTalla, setStockPorTalla] = useState({}); // Aquí guardaremos el stock por talla
 
   // Cargar producto: primero intenta API, si no, inventario local
   useEffect(() => {
@@ -87,13 +87,20 @@ export default function DetalleProducto() {
     cargarProducto();
   }, [numericId]);
 
-  // Stock por talla (del inventario local)
-  const stockPorTalla = useMemo(() => {
-    if (!producto) return {};
-    try {
-      return getStockPorTalla(producto.id) || {};
-    } catch {
-      return {};
+  // Obtenemos el stock por talla (si existe) desde el inventario
+  useEffect(() => {
+    if (producto) {
+      const obtenerStockPorTalla = async () => {
+        try {
+          const stock = await getStockPorTalla(producto.id);
+          setStockPorTalla(stock || {});
+        } catch (error) {
+          console.error("Error al obtener el stock por talla:", error);
+          setStockPorTalla({});
+        }
+      };
+
+      obtenerStockPorTalla();
     }
   }, [producto]);
 
@@ -221,51 +228,43 @@ export default function DetalleProducto() {
               ${CLP.format(producto.precio || 0)}
             </p>
 
-            {/* Stock */}
-            <p className="mb-3">
-              {sinStock ? (
-                <span className="badge text-bg-danger">Sin stock</span>
-              ) : (
-                <span className="badge text-bg-secondary">
-                  Stock total: {totalStock}
-                </span>
-              )}
-            </p>
-
-            {/* Selector de talla */}
+            {/* Stock por talla */}
             {tallasDisponibles.length > 0 && (
               <div className="mb-3">
                 <label className="form-label">Talla</label>
                 <div className="d-flex flex-wrap gap-2">
                   {tallasDisponibles.map((t) => {
                     const stockTalla = stockPorTalla[t] ?? 0;
-                    // Si NO tenemos detalle por talla, solo usamos el stock global
-                    const agotada = tieneStockPorTalla
-                      ? stockTalla <= 0
-                      : sinStock;
+                    const agotada = stockTalla <= 0;
 
                     return (
                       <button
                         key={t}
                         type="button"
                         className={`btn btn-sm ${
-                          t === tallaSeleccionada
-                            ? "btn-primary"
-                            : "btn-outline-light"
+                          t === tallaSeleccionada ? "btn-primary" : "btn-outline-light"
                         }`}
                         disabled={agotada}
                         onClick={() => setTallaSeleccionada(t)}
                       >
                         {t}{" "}
-                        {tieneStockPorTalla && agotada ? "(Agotada)" : ""}
+                        {agotada ? "(Agotada)" : ""}
                       </button>
                     );
                   })}
                 </div>
+                <div className="mt-2 text-muted">
+                  {tallaSeleccionada && (
+                    <span>
+                      Stock talla {tallaSeleccionada}:{" "}
+                      {stockPorTalla[tallaSeleccionada] || 0}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Selector de color */}
+            {/* Colores */}
             {coloresDisponibles.length > 0 && (
               <div className="mb-3">
                 <label className="form-label">Color</label>
@@ -275,9 +274,7 @@ export default function DetalleProducto() {
                       key={c}
                       type="button"
                       className={`btn btn-sm ${
-                        c === colorSeleccionado
-                          ? "btn-primary"
-                          : "btn-outline-light"
+                        c === colorSeleccionado ? "btn-primary" : "btn-outline-light"
                       }`}
                       onClick={() => setColorSeleccionado(c)}
                     >
@@ -298,10 +295,7 @@ export default function DetalleProducto() {
                 {sinStock ? "Sin stock" : "Añadir al carrito"}
               </button>
 
-              <Link
-                to="/productos"
-                className="btn btn-outline-light flex-fill"
-              >
+              <Link to="/productos" className="btn btn-outline-light flex-fill">
                 Volver a productos
               </Link>
             </div>

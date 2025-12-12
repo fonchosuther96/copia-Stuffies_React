@@ -1,4 +1,3 @@
-// src/services/cart.js
 import { productos } from "./productos.js";
 
 const CART_KEY = "stuffies_cart_v1";
@@ -80,16 +79,17 @@ export function addToCart(producto, opts = {}) {
   const fromDB = productos.find((p) => p.id === Number(producto.id));
   const base = { ...(fromDB || {}), ...producto };
 
-  const talla = opts.talla ?? producto.talla ?? null;
-  const color = opts.color ?? producto.color ?? null;
-  const cantidad = num(opts.cantidad ?? producto.cantidad ?? 1, 1);
+  // Validación de parámetros (con valores por defecto)
+  const talla = opts.talla ?? producto.talla ?? "Única";  // Si no hay talla, asignamos "Única"
+  const color = opts.color ?? producto.color ?? "Único";  // Si no hay color, asignamos "Único"
+  const cantidad = num(opts.cantidad ?? producto.cantidad ?? 1, 1);  // Si no hay cantidad, asignamos 1
 
   const item = {
     id: base.id,
     nombre: base.nombre || "",
     precio: num(base.precio, 0),
     imagen: pickImage(base),
-    cantidad,
+    cantidad,  // Aseguramos que cantidad nunca sea undefined
     talla,
     color,
   };
@@ -98,9 +98,9 @@ export function addToCart(producto, opts = {}) {
   const idx = cart.findIndex((it) => sameVariant(it, item));
 
   if (idx >= 0) {
-    cart[idx].cantidad += item.cantidad;
+    cart[idx].cantidad += item.cantidad;  // Si ya está en el carrito, sumamos la cantidad
   } else {
-    cart.push(item);
+    cart.push(item);  // Si no está en el carrito, lo agregamos
   }
 
   writeRaw(cart);

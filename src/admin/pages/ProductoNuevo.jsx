@@ -1,7 +1,10 @@
 // src/admin/pages/ProductoNuevo.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api from "../../api"; // 👈 usamos la API REST
+import api from "../../api"; // API REST base
+import { updateVariants } from "../../services/inventory.js";
+
+const SIZE_ORDER = ["S", "M", "L", "XL", "Única"];
 
 export default function ProductoNuevo() {
   const navigate = useNavigate();
@@ -23,6 +26,10 @@ export default function ProductoNuevo() {
   const [cats, setCats] = useState([]);
   const [catsLoading, setCatsLoading] = useState(true);
   const [catsError, setCatsError] = useState("");
+
+  // Variantes (talla + stock)
+  const [variants, setVariants] = useState([]);
+  const [variantsError, setVariantsError] = useState("");
 
   // === Cargar categorías desde /api/products ===
   useEffect(() => {
@@ -59,6 +66,20 @@ export default function ProductoNuevo() {
     loadCats();
   }, []);
 
+  // === Helpers ===
+  const sortVariants = (list) => {
+    return [...list].sort((a, b) => {
+      const ia = SIZE_ORDER.indexOf(a.talla);
+      const ib = SIZE_ORDER.indexOf(b.talla);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+  };
+
+  const hasUnica = variants.some((v) => v.talla === "Única");
+  const hasOtherSizes = variants.some(
+    (v) => v.talla && v.talla !== "Única"
+  );
+
   // === Validadores simples ===
   const required = (v, m = "Campo obligatorio") =>
     (typeof v === "string" ? v.trim() : v) ? null : m;
@@ -80,7 +101,8 @@ export default function ProductoNuevo() {
 
   const validate = (draft = form) => {
     const e = {};
-    e.nombre = required(draft.nombre) || len(draft.nombre, { min: 3, max: 80 });
+    e.nombre =
+      required(draft.nombre) || len(draft.nombre, { min: 3, max: 80 });
 
     if (!draft.categoria) {
       e.categoria = "Selecciona una categoría";
@@ -98,6 +120,30 @@ export default function ProductoNuevo() {
     return e;
   };
 
+  const validateVariants = (list = variants) => {
+    if (!list.length) return ""; // tallas opcionales
+
+    // Regla Única: o solo Única, o solo S/M/L/XL
+    const hasUni = list.some((v) => v.talla === "Única");
+    const hasOthers = list.some(
+      (v) => v.talla && v.talla !== "Única"
+    );
+    if (hasUni && hasOthers) {
+      return "No puedes mezclar talla Única con otras tallas.";
+    }
+
+    for (const v of list) {
+      if (!v.talla || String(v.talla).trim() === "") {
+        return "Todas las tallas deben tener un valor.";
+      }
+      if (Number.isNaN(Number(v.stock)) || Number(v.stock) < 0) {
+        return "El stock por talla debe ser un número mayor o igual a 0.";
+      }
+    }
+
+    return "";
+  };
+
   const onChange = (e) => {
     const { id, value } = e.target;
     const next = { ...form, [id]: value };
@@ -106,27 +152,124 @@ export default function ProductoNuevo() {
     setOk(false);
   };
 
+  // === Handlers de tallas ===
+  const onVariantChange = (index, field, value) => {
+    let next = variants.map((v, i) =>
+      i === index
+        ? {
+            ...v,
+            [field]:
+              field === "stock"
+                ? Math.max(0, Number(value) || 0)
+                : value,
+          }
+        : v
+    );
+
+    // Reglas para talla Única
+    if (field === "talla") {
+      const nuevaTalla = value;
+
+      if (nuevaTalla === "Única") {
+        // Solo dejamos una fila con Única
+        const stockActual = Math.max(
+          0,
+          Number(next[index]?.stock) || 0
+        );
+        next = [{ talla: "Única", stock: stockActual }];
+      } else {
+        // Quitamos cualquier fila que sea Única distinta de esta
+        next = next.filter(
+          (v, i) => !(v.talla === "Única" && i !== index)
+        );
+      }
+
+      next = sortVariants(next);
+    }
+
+    setVariants(next);
+    setVariantsError("");
+  };
+
+  const adjustVariantStock = (index, delta) => {
+    const next = variants.map((v, i) =>
+      i === index
+        ? {
+            ...v,
+            stock: Math.max(0, Number(v.stock || 0) + delta),
+          }
+        : v
+    );
+    setVariants(next);
+    setVariantsError("");
+  };
+
+  const onAddVariant = () => {
+    if (hasUnica) return; // no agregar más si ya hay Única
+
+    setVariants(
+      sortVariants([
+        ...variants,
+        { talla: "", stock: 0 },
+      ])
+    );
+    setVariantsError("");
+  };
+
+  const onRemoveVariant = (index) => {
+    const next = variants.filter((_, i) => i !== index);
+    setVariants(next);
+    setVariantsError("");
+  };
+
+  // === Submit ===
   const onSubmit = async (e) => {
     e.preventDefault();
     const eAll = validate();
     setErrors(eAll);
-    if (Object.keys(eAll).length) return;
+
+    const vErr = validateVariants();
+    setVariantsError(vErr);
+
+    if (Object.keys(eAll).length || vErr) return;
 
     try {
       setSaving(true);
 
-      // Mapeamos al modelo que espera el backend
-      // Tu entidad tiene campos: nombre, categoria, precio, descripcion, imageUrl, stock, tallas, activo
-      await api.post("/api/products", {
+      const totalStock = variants.reduce(
+        (acc, v) => acc + (Number(v.stock) || 0),
+        0
+      );
+      const tallasStr = variants
+        .map((v) => v.talla)
+        .filter(Boolean)
+        .join(",");
+
+      // Crear producto base
+      const res = await api.post("/api/products", {
         nombre: form.nombre.trim(),
         categoria: form.categoria.trim(),
         precio: Number(form.precio),
         descripcion: form.descripcion.trim(),
-        imageUrl: form.imagen.trim(), // 👈 backend usa imageUrl (o lo mapea a image_url)
-        stock: 0,                      // podrías agregar campo en el form si quieres
-        tallas: "",                    // por ahora vacío
+        imageUrl: form.imagen.trim(),
+        stock: totalStock,
+        tallas: tallasStr,
         activo: true,
       });
+
+      const created = res.data;
+
+      // Crear variantes si existen
+      if (created?.id && variants.length) {
+        await updateVariants(
+          created.id,
+          variants.map((v) => ({
+            id: null,
+            talla: String(v.talla).trim(),
+            stock: Math.max(0, Number(v.stock) || 0),
+          }))
+        );
+      }
 
       setOk(true);
       setTimeout(() => navigate("../productos"), 600);
@@ -159,7 +302,9 @@ export default function ProductoNuevo() {
             <div className="row g-3">
               {errors._global && (
                 <div className="col-12">
-                  <div className="alert alert-danger">{errors._global}</div>
+                  <div className="alert alert-danger">
+                    {errors._global}
+                  </div>
                 </div>
               )}
 
@@ -184,7 +329,10 @@ export default function ProductoNuevo() {
                 </label>
                 <select
                   id="categoria"
-                  className={cls("categoria").replace("form-control", "form-select")}
+                  className={cls("categoria").replace(
+                    "form-control",
+                    "form-select"
+                  )}
                   value={form.categoria}
                   onChange={onChange}
                   disabled={catsLoading || cats.length === 0}
@@ -202,7 +350,9 @@ export default function ProductoNuevo() {
                   )}
                 </select>
                 {catsError && (
-                  <div className="text-warning small mt-1">{catsError}</div>
+                  <div className="text-warning small mt-1">
+                    {catsError}
+                  </div>
                 )}
                 <Msg k="categoria" />
               </div>
@@ -252,6 +402,151 @@ export default function ProductoNuevo() {
                 <Msg k="imagen" />
               </div>
 
+              {/* =========================
+                  BLOQUE STOCK POR TALLA
+                 ========================= */}
+              <div className="col-12 mt-3">
+                <h5>Stock por talla</h5>
+
+                {variantsError && (
+                  <div className="alert alert-danger py-2">
+                    {variantsError}
+                  </div>
+                )}
+
+                <div className="table-responsive">
+                  <table className="table table-dark table-sm align-middle mb-2">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "40%" }}>Talla</th>
+                        <th
+                          style={{ width: "35%" }}
+                          className="text-center"
+                        >
+                          Stock
+                        </th>
+                        <th
+                          style={{ width: "25%" }}
+                          className="text-center"
+                        >
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variants.map((v, idx) => (
+                        <tr key={idx}>
+                          <td>
+                            <select
+                              className="form-select"
+                              value={v.talla ?? ""}
+                              onChange={(e) =>
+                                onVariantChange(idx, "talla", e.target.value)
+                              }
+                            >
+                              <option value="">Selecciona talla</option>
+                              {SIZE_ORDER.map((size) => {
+                                const usedByOther = variants.some(
+                                  (other, j) =>
+                                    j !== idx &&
+                                    other.talla === size
+                                );
+
+                                // Regla Única: si ya hay otras tallas,
+                                // no permitir seleccionar Única (salvo que ya esté seleccionada aquí).
+                                const disableUnica =
+                                  size === "Única" &&
+                                  hasOtherSizes &&
+                                  v.talla !== "Única";
+
+                                const disabled =
+                                  usedByOther || disableUnica;
+
+                                return (
+                                  <option
+                                    key={size}
+                                    value={size}
+                                    disabled={disabled}
+                                  >
+                                    {size}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </td>
+                          <td className="text-center">
+                            <div className="d-inline-flex align-items-center gap-2 justify-content-center">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-light"
+                                onClick={() =>
+                                  adjustVariantStock(idx, -1)
+                                }
+                              >
+                                −
+                              </button>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="form-control text-end"
+                                style={{ maxWidth: "70px" }}
+                                value={v.stock ?? 0}
+                                onChange={(e) =>
+                                  onVariantChange(
+                                    idx,
+                                    "stock",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-light"
+                                onClick={() =>
+                                  adjustVariantStock(idx, +1)
+                                }
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          <td className="text-center">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => onRemoveVariant(idx)}
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {variants.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="text-center text-muted">
+                            No hay tallas definidas aún.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="d-flex gap-2 mb-3 justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={onAddVariant}
+                    disabled={hasUnica}
+                  >
+                    Añadir talla
+                  </button>
+                </div>
+              </div>
+
+              {/* Botones finales */}
               <div className="col-12 d-flex gap-2">
                 <button
                   type="submit"
@@ -260,7 +555,10 @@ export default function ProductoNuevo() {
                 >
                   {saving ? "Guardando..." : "Guardar"}
                 </button>
-                <Link to="../productos" className="btn btn-outline-light">
+                <Link
+                  to="../productos"
+                  className="btn btn-outline-light"
+                >
                   Cancelar
                 </Link>
               </div>

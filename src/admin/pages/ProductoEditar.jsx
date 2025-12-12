@@ -1,10 +1,10 @@
-// src/admin/pages/ProductoEditar.jsx
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   getLiveById,
   getCategories,
   updateProduct,
+  updateVariants,
 } from "../../services/inventory.js";
 
 export default function ProductoEditar() {
@@ -25,6 +25,10 @@ export default function ProductoEditar() {
   const [cats, setCats] = useState([]);
   const [errors, setErrors] = useState({});
   const [ok, setOk] = useState(false);
+
+  // Variantes (stock por talla)
+  const [variants, setVariants] = useState([]);
+  const [variantsError, setVariantsError] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -49,6 +53,9 @@ export default function ProductoEditar() {
           imagen: prod.imagen || "",
         });
 
+        // cargamos variantes (stock por talla)
+        setVariants(Array.isArray(prod.variants) ? prod.variants : []);
+
         setCats(Array.isArray(listCats) ? listCats : []);
       } catch (err) {
         console.error(err);
@@ -60,6 +67,10 @@ export default function ProductoEditar() {
 
     load();
   }, [id]);
+
+  // =========================
+  //   VALIDACIONES
+  // =========================
 
   const required = (v, m = "Campo obligatorio") =>
     (typeof v === "string" ? v.trim() : v) ? null : m;
@@ -105,6 +116,26 @@ export default function ProductoEditar() {
     return e;
   };
 
+  const validateVariants = () => {
+    if (!Array.isArray(variants) || variants.length === 0) {
+      return "";
+    }
+
+    for (const v of variants) {
+      if (!v.talla || String(v.talla).trim() === "") {
+        return "Todas las tallas deben tener nombre.";
+      }
+      if (Number.isNaN(Number(v.stock)) || Number(v.stock) < 0) {
+        return "El stock debe ser un número mayor o igual a 0.";
+      }
+    }
+    return "";
+  };
+
+  // =========================
+  //   HANDLERS FORM
+  // =========================
+
   const onChange = (e) => {
     const { id, value } = e.target;
     const next = { ...form, [id]: value };
@@ -113,11 +144,67 @@ export default function ProductoEditar() {
     setOk(false);
   };
 
+  // =========================
+  //   HANDLERS VARIANTES
+  // =========================
+
+  const onVariantChange = (index, field, value) => {
+    const next = variants.map((v, i) =>
+      i === index
+        ? {
+            ...v,
+            [field]:
+              field === "stock"
+                ? Math.max(0, Number(value) || 0)
+                : value,
+          }
+        : v
+    );
+    setVariants(next);
+    setVariantsError("");
+  };
+
+  const adjustVariantStock = (index, delta) => {
+    const next = variants.map((v, i) =>
+      i === index
+        ? {
+            ...v,
+            stock: Math.max(0, Number(v.stock || 0) + delta),
+          }
+        : v
+    );
+    setVariants(next);
+    setVariantsError("");
+  };
+
+  const onAddVariant = () => {
+    setVariants([
+      ...variants,
+      { id: null, talla: "", stock: 0 },
+    ]);
+    setVariantsError("");
+  };
+
+  const onRemoveVariant = (index) => {
+    const next = variants.filter((_, i) => i !== index);
+    setVariants(next);
+    setVariantsError("");
+  };
+
+  // =========================
+  //   SUBMIT GENERAL
+  // =========================
+
   const onSubmit = async (e) => {
     e.preventDefault();
+
     const eAll = validate();
     setErrors(eAll);
-    if (Object.keys(eAll).length) return;
+
+    const vError = validateVariants();
+    setVariantsError(vError);
+
+    if (Object.keys(eAll).length || vError) return;
 
     try {
       await updateProduct(id, {
@@ -128,11 +215,20 @@ export default function ProductoEditar() {
         imagen: form.imagen,
       });
 
+      await updateVariants(
+        id,
+        (variants || []).map((v) => ({
+          id: v.id ?? null,
+          talla: String(v.talla || "").trim(),
+          stock: Math.max(0, Number(v.stock) || 0),
+        }))
+      );
+
       setOk(true);
       setTimeout(() => navigate("../productos"), 600);
     } catch (err) {
       console.error(err);
-      alert("No se pudo actualizar el producto.");
+      alert("No se pudo actualizar el producto / stock por talla.");
     }
   };
 
@@ -186,7 +282,10 @@ export default function ProductoEditar() {
                 </label>
                 <select
                   id="categoria"
-                  className={cls("categoria").replace("form-control", "form-select")}
+                  className={cls("categoria").replace(
+                    "form-control",
+                    "form-select"
+                  )}
                   value={form.categoria}
                   onChange={onChange}
                   disabled={cats.length === 0}
@@ -241,6 +340,120 @@ export default function ProductoEditar() {
                 <Msg k="imagen" />
               </div>
 
+              {/* =========================
+                  BLOQUE STOCK POR TALLA
+                 ========================= */}
+              <div className="col-12 mt-4">
+                <h5>Stock por talla</h5>
+
+                {variantsError && (
+                  <div className="alert alert-danger py-2">
+                    {variantsError}
+                  </div>
+                )}
+
+                <div className="table-responsive">
+                  <table className="table table-dark table-sm align-middle mb-2">
+                    <thead>
+                      <tr>
+                        <th style={{ width: "40%" }}>Talla</th>
+                        <th
+                          style={{ width: "35%" }}
+                          className="text-center"
+                        >
+                          Stock
+                        </th>
+                        <th
+                          style={{ width: "25%" }}
+                          className="text-center"
+                        >
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variants.map((v, idx) => (
+                        <tr key={v.id ?? idx}>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={v.talla ?? ""}
+                              onChange={(e) =>
+                                onVariantChange(idx, "talla", e.target.value)
+                              }
+                            />
+                          </td>
+                          <td className="text-center">
+                            <div className="d-inline-flex align-items-center gap-2 justify-content-center">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-light"
+                                onClick={() => adjustVariantStock(idx, -1)}
+                                title="Restar 1"
+                              >
+                                −
+                              </button>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                className="form-control text-end"
+                                style={{ maxWidth: "70px" }}
+                                value={v.stock ?? 0}
+                                onChange={(e) =>
+                                  onVariantChange(
+                                    idx,
+                                    "stock",
+                                    e.target.value
+                                  )
+                                }
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-light"
+                                onClick={() => adjustVariantStock(idx, +1)}
+                                title="Sumar 1"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          <td className="text-center">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() => onRemoveVariant(idx)}
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+
+                      {variants.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="text-center text-muted">
+                            No hay tallas definidas aún.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="d-flex gap-2 mb-3 justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-light"
+                    onClick={onAddVariant}
+                  >
+                    Añadir talla
+                  </button>
+                </div>
+              </div>
+
+              {/* Botones principales del formulario */}
               <div className="col-12 d-flex gap-2">
                 <button type="submit" className="btn btn-primary">
                   Guardar cambios
@@ -252,7 +465,7 @@ export default function ProductoEditar() {
 
               {ok && (
                 <div className="alert alert-success mt-2">
-                  Producto actualizado correctamente.
+                  Producto y stock actualizados correctamente.
                 </div>
               )}
             </div>

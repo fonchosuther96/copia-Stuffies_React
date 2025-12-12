@@ -24,11 +24,15 @@ export default function Productos() {
 
         const res = await api.get("/api/products");
 
-        // Si el backend devuelve un array directo:
-        setItems(res.data || []);
+        // Normalizamos SIEMPRE a array
+        const raw = res?.data;
+        const lista = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.content)
+          ? raw.content
+          : [];
 
-        // Si fuera paginado tipo { content: [...] }, sería:
-        // setItems(res.data.content || []);
+        setItems(lista);
       } catch (err) {
         console.error(err);
         setError("No se pudieron cargar los productos. Intenta más tarde.");
@@ -43,12 +47,14 @@ export default function Productos() {
 
   // 🔹 Calcular precio mínimo y máximo reales
   const { minPrecio, maxPrecio } = useMemo(() => {
-    if (!items.length) return { minPrecio: 0, maxPrecio: 0 };
+    const lista = Array.isArray(items) ? items : [];
+
+    if (!lista.length) return { minPrecio: 0, maxPrecio: 0 };
 
     let min = Infinity;
     let max = 0;
 
-    for (const p of items) {
+    for (const p of lista) {
       const precioNum = Number(p.precio) || 0;
       if (precioNum < min) min = precioNum;
       if (precioNum > max) max = precioNum;
@@ -68,9 +74,10 @@ export default function Productos() {
 
   // Opciones de categoría = categorías presentes en productos (sin duplicados)
   const categoriaOptions = useMemo(() => {
+    const lista = Array.isArray(items) ? items : [];
     const set = new Set();
 
-    for (const p of items) {
+    for (const p of lista) {
       if (p.categoria) set.add(p.categoria);
     }
 
@@ -79,7 +86,9 @@ export default function Productos() {
 
   // Filtrado por categoría y precio
   const dataFiltrada = useMemo(() => {
-    return items.filter((p) => {
+    const lista = Array.isArray(items) ? items : [];
+
+    return lista.filter((p) => {
       const cat = p.categoria;
       const precio = Number(p.precio);
 

@@ -2,7 +2,7 @@
 import api from "../api";
 
 // Normaliza el producto que viene del backend a lo que usa el front
-function normalizeProduct(p) {
+export function normalizeProduct(p) {
   if (!p) return null;
 
   return {
@@ -27,11 +27,23 @@ function normalizeProduct(p) {
       (Array.isArray(p.imagenes) && p.imagenes[1]) ||
       null,
 
-    // extras
     destacado: p.destacado ?? false,
+
+    // Variantes (stock por talla)
+    variants: Array.isArray(p.variants)
+      ? p.variants.map((v) => ({
+          id: v.id ?? null,
+          talla: v.talla ?? "",
+          stock: Number(v.stock ?? 0),
+        }))
+      : [],
+
     stockPorTalla: p.stockPorTalla || null,
-    tallas: Array.isArray(p.tallas) ? p.tallas : [],
-    colores: Array.isArray(p.colores) ? p.colores : [],
+
+    // ⬇️ Volvemos a STRING para no romper product.tallas.split(...)
+    tallas: p.tallas ?? "",
+    colores: p.colores ?? "",
+
     galeria: Array.isArray(p.galeria) ? p.galeria : [],
     imagenes: Array.isArray(p.imagenes) ? p.imagenes : [],
     imagen2: p.imagen2 || null,
@@ -56,24 +68,50 @@ export async function getAllLive() {
   return arr.map(normalizeProduct);
 }
 
-// trae un producto por id
+// Variantes de un producto
+export async function getProductVariants(productId) {
+  const res = await api.get(`/api/products/${productId}/variants`);
+  const raw = Array.isArray(res.data) ? res.data : [];
+  return raw.map((v) => ({
+    id: v.id ?? null,
+    talla: v.talla ?? "",
+    stock: Number(v.stock ?? 0),
+  }));
+}
+
+// trae un producto por id (con variantes)
 export async function getLiveById(id) {
   const res = await api.get(`/api/products/${id}`);
-  return normalizeProduct(res.data);
+  const prod = normalizeProduct(res.data);
+
+  try {
+    const vars = await getProductVariants(id);
+    prod.variants = vars;
+  } catch {
+    prod.variants = [];
+  }
+
+  return prod;
 }
 
-// stock por talla
+// Mantener compatibilidad con DetalleProducto.jsx
 export async function getStockPorTalla(id) {
-  const prod = await getLiveById(id);
-  return prod?.stockPorTalla ?? null;
+  const variants = await getProductVariants(id);
+  if (!variants.length) return null;
+
+  const map = {};
+  for (const v of variants) {
+    const key = v.talla || "Única";
+    map[key] = Number(v.stock || 0);
+  }
+  return map; // { "S": 40, "M": 60, ... }
 }
 
+// stock total usando variantes
 export async function getTotalStock(id) {
-  const spt = await getStockPorTalla(id);
-  if (!spt) return 0;
-  return Object.values(spt).reduce((a, n) => a + Number(n || 0), 0);
+  const variants = await getProductVariants(id);
+  return variants.reduce((acc, v) => acc + Number(v.stock || 0), 0);
 }
-
 
 // ======================
 //   CRUD PRODUCTOS
@@ -104,6 +142,29 @@ export async function updateProduct(id, data) {
 
 export async function deleteProduct(id) {
   await api.delete(`/api/products/${id}`);
+}
+
+// Actualizar variantes
+export async function updateVariants(productId, variants) {
+  const payload = Array.isArray(variants)
+    ? variants.map((v) => ({
+        id: v.id ?? null,
+        talla: v.talla ?? "",
+        stock: Number(v.stock ?? 0),
+      }))
+    : [];
+
+  const res = await api.put(
+    `/api/products/${productId}/variants`,
+    payload
+  );
+
+  const raw = Array.isArray(res.data) ? res.data : [];
+  return raw.map((v) => ({
+    id: v.id ?? null,
+    talla: v.talla ?? "",
+    stock: Number(v.stock ?? 0),
+  }));
 }
 
 // ======================

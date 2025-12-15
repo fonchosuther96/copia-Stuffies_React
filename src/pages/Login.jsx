@@ -11,7 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const { login, logout } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,22 +19,32 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Limpiar sesión antes
+      logout();
+
       const resp = await api.post("/auth/login", {
         username,
         password,
       });
 
-      const data = resp.data; // { token, username, role }
-      login(data);
+      const data = resp.data;
 
-      const role = (data.role || "").toUpperCase();
+      // Guardar sesión
+      login({
+        token: data.token,
+        username: data.username,
+        roles: [data.role],
+      });
 
-      // ADMIN o VENDEDOR -> panel admin, resto -> home
+      const role = String(data.role || "").toUpperCase();
+
+      // Redirección por rol
       if (role === "ROLE_ADMIN" || role === "ROLE_VENDEDOR") {
-        navigate("/admin");
+        navigate("/admin", { replace: true });
       } else {
-        navigate("/");
+        navigate("/", { replace: true });
       }
+
     } catch (err) {
       console.error(err);
       setError("Usuario o contraseña incorrectos");
@@ -67,8 +77,14 @@ export default function Login() {
           {error && <div className="alert alert-danger">{error}</div>}
 
           <div className="mb-3">
-            <label className="form-label text-light">Usuario</label>
+            <label
+              className="form-label text-light"
+              htmlFor="username"
+            >
+              Usuario
+            </label>
             <input
+              id="username"
               type="text"
               className="form-control"
               value={username}
@@ -78,14 +94,19 @@ export default function Login() {
           </div>
 
           <div className="mb-3">
-            <label className="form-label text-light">Contraseña</label>
+            <label
+              className="form-label text-light"
+              htmlFor="password"
+            >
+              Contraseña
+            </label>
             <input
+              id="password"
               type="password"
               className="form-control"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              maxLength={10}
             />
           </div>
 

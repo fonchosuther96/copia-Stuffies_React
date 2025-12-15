@@ -270,9 +270,16 @@ export default function Header() {
 
                 {/* Menú dropdown controlado por React (solo desktop) */}
                 <ul
-                  className={`dropdown-menu dropdown-menu-end ${menuOpen ? "show" : ""}`}
-                  style={{ right: 0, left: "auto", zIndex: 2000 }}
-                >
+                    className={`dropdown-menu dropdown-menu-end ${menuOpen ? "show" : ""}`}
+                    style={{
+                      top: "100%",
+                      marginTop: 8,
+                      right: 0,
+                      left: "auto",
+                      zIndex: 2000,
+                    }}
+                  >
+
                   <li className="px-3 py-2 small text-muted">
                     Hola, {session.name || session.user || "usuario"}
                   </li>

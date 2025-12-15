@@ -1,8 +1,29 @@
-import { NavLink } from "react-router-dom";
-import { useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useContext, useEffect, useState } from "react";
+import { AuthContext } from "../../context/AuthContext.jsx";
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false);
+  const nav = useNavigate();
+  const { user, logout } = useContext(AuthContext) || {};
+
+  let rawRole =
+    user?.role ||
+    (Array.isArray(user?.roles) ? user.roles[0] : "") ||
+    "";
+
+  rawRole = String(rawRole).toUpperCase();
+
+  const isAdmin = rawRole.includes("ADMIN");
+  const isVendedor = rawRole.includes("VENDEDOR");
+
+  // Seguridad extra: si no es admin ni vendedor, fuera
+  useEffect(() => {
+    if (!isAdmin && !isVendedor) {
+      if (typeof logout === "function") logout();
+      nav("/", { replace: true });
+    }
+  }, [isAdmin, isVendedor, logout, nav]);
 
   const linkCls = ({ isActive }) =>
     "list-group-item list-group-item-action bg-transparent text-light border-0 " +
@@ -23,9 +44,11 @@ export default function Sidebar() {
         <div className="text-secondary text-uppercase fw-bold px-3 mb-2">
           General
         </div>
+
         <NavLink to="/admin" end className={linkCls}>
           🏠 Dashboard
         </NavLink>
+
         <NavLink to="/admin/ordenes" className={linkCls}>
           🧾 Órdenes / Boletas
         </NavLink>
@@ -34,40 +57,56 @@ export default function Sidebar() {
         <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
           Productos
         </div>
+
         <NavLink to="/admin/productos" className={linkCls}>
           📦 Listado
         </NavLink>
-        <NavLink to="/admin/productos/nuevo" className={linkCls}>
-          ➕ Nuevo
-        </NavLink>
-        <NavLink to="/admin/productos/criticos" className={linkCls}>
-          ⚠️ Críticos
-        </NavLink>
-        <NavLink to="/admin/reportes" className={linkCls}>
-          📈 Reportes
-        </NavLink>
+
+        {/* REPORTES: ADMIN y VENDEDOR */}
+        {(isAdmin || isVendedor) && (
+          <NavLink to="/admin/reportes" className={linkCls}>
+            📈 Reportes
+          </NavLink>
+        )}
+
+        {/* SOLO ADMIN */}
+        {isAdmin && (
+          <>
+            <NavLink to="/admin/productos/nuevo" className={linkCls}>
+              ➕ Nuevo
+            </NavLink>
+
+            <NavLink to="/admin/productos/criticos" className={linkCls}>
+              ⚠️ Críticos
+            </NavLink>
+          </>
+        )}
 
         {/* ------------------ CATÁLOGO ------------------ */}
-        <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
-          Catálogo
-        </div>
-        <NavLink to="/admin/categorias" className={linkCls}>
-          🗂️ Categorías
-        </NavLink>
-        {/* ✔ Se eliminó: Nueva categoría */}
+        {isAdmin && (
+          <>
+            <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
+              Catálogo
+            </div>
+
+            <NavLink to="/admin/categorias" className={linkCls}>
+              🗂️ Categorías
+            </NavLink>
+          </>
+        )}
 
         {/* ------------------ USUARIOS ------------------ */}
-        <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
-          Usuarios
-        </div>
-        <NavLink to="/admin/usuarios" className={linkCls}>
-          👤 Listado
-        </NavLink>
-        {/* ❌ Eliminado: Nuevo usuario */}
+        {isAdmin && (
+          <>
+            <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
+              Usuarios
+            </div>
 
-        {/* ------------------ CUENTA ------------------ */}
-        <div className="text-secondary text-uppercase fw-bold px-3 mt-3 mb-2">
-        </div>
+            <NavLink to="/admin/usuarios" className={linkCls}>
+              👤 Listado
+            </NavLink>
+          </>
+        )}
       </div>
     </aside>
   );

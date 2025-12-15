@@ -1,4 +1,3 @@
-// src/routes/public.jsx
 import { Navigate } from "react-router-dom";
 
 import Layout from "../components/Layout.jsx";
@@ -23,6 +22,9 @@ import Ofertas from "../pages/Ofertas.jsx";
 // 🔥 Boleta pública
 import Boleta from "../pages/Boleta.jsx";
 
+// 🔥 PERFIL (usa el mismo del admin)
+import Perfil from "../pages/Perfil.jsx";
+
 export const publicRoutes = [
   {
     path: "/",
@@ -37,6 +39,16 @@ export const publicRoutes = [
       { path: "detalle-producto/:id", element: <DetalleProducto /> },
       { path: "categorias", element: <Categorias /> },
       { path: "ofertas", element: <Ofertas /> },
+
+      // 🔐 PERFIL (usuario autenticado)
+      {
+        path: "perfil",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_VENDEDOR", "ROLE_CLIENTE"]}>
+            <Perfil />
+          </ProtectedRoute>
+        ),
+      },
 
       // Checkout protegido
       {

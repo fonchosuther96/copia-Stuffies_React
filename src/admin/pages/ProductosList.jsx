@@ -1,7 +1,7 @@
-// src/admin/pages/ProductosList.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useContext } from "react";
 import { Link } from "react-router-dom";
-import api from "../../api"; // 👈 ahora usamos la API REST
+import api from "../../api";
+import { AuthContext } from "../../context/AuthContext.jsx";
 
 const money = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -10,27 +10,32 @@ const money = new Intl.NumberFormat("es-CL", {
 });
 
 export default function ProductosList() {
+  const { user } = useContext(AuthContext) || {};
+
+  const rawRole = String(
+    user?.role ||
+      (Array.isArray(user?.roles) ? user.roles[0] : "") ||
+      ""
+  ).toUpperCase();
+
+  const isAdmin = rawRole.includes("ADMIN");
+  const isVendedor = rawRole.includes("VENDEDOR");
+
   const [items, setItems] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
-  const [flash, setFlash] = useState(null); // {type,text}
+  const [flash, setFlash] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Cargar productos desde el backend
+  // Cargar productos
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
         setError("");
 
-        // GET /api/products
         const res = await api.get("/api/products");
-
-        // Si el backend devuelve un array directo:
         setItems(Array.isArray(res.data) ? res.data : []);
-
-        // Si fuera paginado tipo { content: [...] }:
-        // setItems(Array.isArray(res.data?.content) ? res.data.content : []);
       } catch (err) {
         console.error(err);
         setError("No se pudieron cargar los productos desde el servidor.");
@@ -42,13 +47,14 @@ export default function ProductosList() {
     load();
   }, []);
 
-  // Ordenar por id (SEGURO — evita error "is not iterable")
   const rows = useMemo(() => {
     if (!Array.isArray(items)) return [];
     return [...items].sort((a, b) => Number(a.id) - Number(b.id));
   }, [items]);
 
   const askDelete = async (id, nombre) => {
+    if (!isAdmin) return;
+
     if (
       !window.confirm(
         `¿Eliminar el producto "${nombre}" (#${id})? Esta acción no se puede deshacer.`
@@ -58,10 +64,7 @@ export default function ProductosList() {
 
     try {
       setDeletingId(id);
-
-      // DELETE /api/products/{id}
       await api.delete(`/api/products/${id}`);
-
       setFlash({ type: "success", text: `Producto #${id} eliminado.` });
       setItems((prev) => prev.filter((p) => String(p.id) !== String(id)));
     } catch (err) {
@@ -76,28 +79,34 @@ export default function ProductosList() {
     }
   };
 
-  if (loading) {
-    return <p>Cargando productos...</p>;
-  }
-
-  if (error) {
-    return <div className="alert alert-danger">{error}</div>;
-  }
+  if (loading) return <p>Cargando productos...</p>;
+  if (error) return <div className="alert alert-danger">{error}</div>;
 
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="m-0">Productos</h2>
+
         <div className="d-flex gap-2">
-          <Link className="btn btn-primary" to="../productos/nuevo">
-            Nuevo producto
-          </Link>
-          <Link className="btn btn-outline-light" to="../productos/criticos">
-            Listado críticos
-          </Link>
-          <Link className="btn btn-outline-light" to="../productos/reportes">
-            Reportes
-          </Link>
+          {isAdmin && (
+            <>
+              <Link className="btn btn-primary" to="../productos/nuevo">
+                Nuevo producto
+              </Link>
+              <Link
+                className="btn btn-outline-light"
+                to="../productos/criticos"
+              >
+                Listado críticos
+              </Link>
+            </>
+          )}
+
+          {(isAdmin || isVendedor) && (
+            <Link className="btn btn-outline-light" to="../reportes">
+              Reportes
+            </Link>
+          )}
         </div>
       </div>
 
@@ -121,12 +130,11 @@ export default function ProductosList() {
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={6} className="text-center text-secondary py-4">
-                  No hay productos aún. Crea el primero con “Nuevo producto”.
+                  No hay productos aún.
                 </td>
               </tr>
             ) : (
               rows.map((p) => {
-                // Soporte para distintos nombres de campo imagen
                 const imagen =
                   p.imagen ||
                   p.imageUrl ||
@@ -134,9 +142,7 @@ export default function ProductosList() {
                   p.image_url ||
                   null;
 
-                // Stock: si backend tiene "stock", tomarlo, si no, 0
                 const stock = p.stock ?? 0;
-
                 const isDeleting = String(deletingId) === String(p.id);
 
                 return (
@@ -144,7 +150,7 @@ export default function ProductosList() {
                     <td>{p.id}</td>
                     <td>
                       <div className="d-flex align-items-center gap-2">
-                        {imagen ? (
+                        {imagen && (
                           <img
                             src={imagen}
                             alt={p.nombre}
@@ -155,13 +161,13 @@ export default function ProductosList() {
                               borderRadius: 6,
                             }}
                           />
-                        ) : null}
+                        )}
                         <span>{p.nombre}</span>
-                        {p.destacado ? (
+                        {p.destacado && (
                           <span className="badge bg-warning text-dark">
                             Destacado
                           </span>
-                        ) : null}
+                        )}
                       </div>
                     </td>
                     <td>
@@ -172,22 +178,25 @@ export default function ProductosList() {
                     <td>{stock}</td>
                     <td>{money.format(p.precio ?? 0)}</td>
                     <td className="text-end col-actions">
-                      <div className="btn-group">
-                        <Link
-                          to={`../productos/editar/${p.id}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          Editar
-                        </Link>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => askDelete(p.id, p.nombre)}
-                          disabled={isDeleting}
-                          title="Eliminar producto"
-                        >
-                          {isDeleting ? "Eliminando..." : "Eliminar"}
-                        </button>
-                      </div>
+                      {isAdmin ? (
+                        <div className="btn-group">
+                          <Link
+                            to={`../productos/editar/${p.id}`}
+                            className="btn btn-sm btn-outline-primary"
+                          >
+                            Editar
+                          </Link>
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => askDelete(p.id, p.nombre)}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? "Eliminando..." : "Eliminar"}
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-secondary">—</span>
+                      )}
                     </td>
                   </tr>
                 );

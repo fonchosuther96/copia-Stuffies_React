@@ -28,6 +28,15 @@ function validarRut(rut) {
   return dvCalc === dv;
 }
 
+// ======================
+// AUTO FORMATEAR RUN
+// ======================
+function formatearRut(value) {
+  let v = value.replace(/\./g, "").replace(/-/g, "").toUpperCase();
+  if (v.length <= 1) return v;
+  return v.slice(0, -1) + "-" + v.slice(-1);
+}
+
 export default function Registro() {
   const navigate = useNavigate();
 
@@ -62,78 +71,50 @@ export default function Registro() {
     const address = form.address.trim();
     const role = form.role;
 
-    // RUN
-    if (!run) {
-      e.run = "Ingresa tu RUN";
-    } else if (!validarRut(run)) {
-      e.run = "RUN inválido. Debe incluir dígito verificador.";
-    }
+    if (!run) e.run = "Ingresa tu RUN";
+    else if (!validarRut(run)) e.run = "RUN inválido.";
 
-    // NOMBRE (mínimo 2)
-    if (!name) {
-      e.name = "Ingresa tu nombre";
-    } else if (name.length < 2) {
-      e.name = "El nombre debe tener al menos 2 caracteres";
-    }
+    if (!name) e.name = "Ingresa tu nombre";
+    else if (name.length < 2) e.name = "Mínimo 2 caracteres";
 
-    // APELLIDOS (mínimo 2)
-    if (!last) {
-      e.last = "Ingresa tus apellidos";
-    } else if (last.length < 2) {
-      e.last = "Los apellidos deben tener al menos 2 caracteres";
-    }
+    if (!last) e.last = "Ingresa tus apellidos";
+    else if (last.length < 2) e.last = "Mínimo 2 caracteres";
 
-    // EMAIL
-    if (!email) {
-      e.email = "Ingresa tu correo";
-    } else if (!/^\S+@\S+\.\S+$/.test(email)) {
-      e.email = "Correo inválido";
-    } else if (email.length > 100) {
-      e.email = "El correo es demasiado largo";
-    }
+    if (!email) e.email = "Ingresa tu correo";
+    else if (!/^\S+@\S+\.\S+$/.test(email)) e.email = "Correo inválido";
 
-    // USUARIO (4–20)
-    if (!user) {
-      e.user = "Ingresa un usuario";
-    } else if (user.length < 4) {
-      e.user = "El usuario debe tener al menos 4 caracteres";
-    } else if (user.length > 20) {
-      e.user = "El usuario no debe superar 20 caracteres";
-    }
+    if (!user) e.user = "Ingresa un usuario";
+    else if (user.length < 4 || user.length > 20)
+      e.user = "Entre 4 y 20 caracteres";
 
-    // CONTRASEÑA (4–10)
-    if (!pass) {
-      e.pass = "Ingresa una contraseña";
-    } else if (pass.length < 4 || pass.length > 10) {
-      e.pass = "Contraseña entre 4 y 10 caracteres";
-    }
+    if (!pass) e.pass = "Ingresa una contraseña";
+    else if (pass.length < 4 || pass.length > 10)
+      e.pass = "Entre 4 y 10 caracteres";
 
-    // REPETIR CONTRASEÑA
-    if (!pass2) {
-      e.pass2 = "Repite la contraseña";
-    } else if (pass2 !== pass) {
-      e.pass2 = "Las contraseñas no coinciden";
-    }
+    if (!pass2) e.pass2 = "Repite la contraseña";
+    else if (pass2 !== pass) e.pass2 = "Las contraseñas no coinciden";
 
-    // DIRECCIÓN (mínimo 5)
-    if (!address) {
-      e.address = "Ingresa tu dirección";
-    } else if (address.length < 5) {
-      e.address = "La dirección debe tener al menos 5 caracteres";
-    }
+    if (!address) e.address = "Ingresa tu dirección";
+    else if (address.length < 5) e.address = "Mínimo 5 caracteres";
 
-    // ROL
-    if (!role) {
-      e.role = "Selecciona un rol";
-    }
+    if (!role) e.role = "Selecciona un rol";
 
     return e;
   };
 
+  // ======================
+  // ON CHANGE (con RUN auto)
+  // ======================
   const onChange = (e) => {
     const { id, value } = e.target;
-    setForm((f) => ({ ...f, [id]: value }));
-    setErrors((err) => ({ ...err, [id]: "" })); // limpia error del campo
+
+    if (id === "run") {
+      setForm((f) => ({ ...f, run: formatearRut(value) }));
+    } else {
+      setForm((f) => ({ ...f, [id]: value }));
+    }
+
+    setErrors((err) => ({ ...err, [id]: "", api: "" }));
   };
 
   // ======================
@@ -155,7 +136,7 @@ export default function Registro() {
         username: form.user.trim(),
         password: form.pass,
         direccion: form.address.trim(),
-        role: form.role.toUpperCase(), // backend usa ROLE_...
+        role: form.role.toUpperCase(),
       };
 
       await api.post("/auth/register", payload);
@@ -163,19 +144,50 @@ export default function Registro() {
       setOk(true);
       setErrors({});
       setTimeout(() => navigate("/login"), 800);
-    } catch (err) {
-      console.error(err);
 
-      const msg = err?.response?.data;
+    } catch (error) {
+      const e = {};
 
-      // Backend suele responder: "No se pudo registrar el usuario: El usuario ya existe"
-      if (typeof msg === "string" && msg.includes("El usuario ya existe")) {
-        setErrors({ user: "Ese usuario ya existe. Prueba con otro nombre." });
+      if (error.response) {
+        const data = error.response.data;
+        const status = error.response.status;
+
+        // Caso 1: backend manda message
+        if (data?.message) {
+          const msg = data.message.toLowerCase();
+
+          if (msg.includes("email") || msg.includes("correo")) {
+            e.email = "Ese email ya está registrado";
+          } else if (msg.includes("usuario")) {
+            e.user = "Ese nombre de usuario ya existe";
+          } else {
+            e.api = data.message;
+          }
+
+        // Caso 2: backend manda string directo
+        } else if (typeof data === "string") {
+          const msg = data.toLowerCase();
+
+          if (msg.includes("email") || msg.includes("correo")) {
+            e.email = "Ese email ya está registrado";
+          } else if (msg.includes("usuario")) {
+            e.user = "Ese nombre de usuario ya existe";
+          } else {
+            e.api = data;
+          }
+
+        // Caso 3: status 409 sin mensaje
+        } else if (status === 409) {
+          e.api = "El correo o nombre de usuario ya está registrado";
+        } else {
+          e.api = "No se pudo crear la cuenta. Intenta nuevamente.";
+        }
+
       } else {
-        setErrors({
-          api: "No se pudo crear la cuenta. Verifica los datos o intenta más tarde.",
-        });
+        e.api = "No se pudo crear la cuenta. Intenta nuevamente.";
       }
+
+      setErrors(e);
     }
   };
 
@@ -188,35 +200,21 @@ export default function Registro() {
     );
 
   return (
-    <main
-      className="py-5"
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#111",
-        display: "flex",
-        alignItems: "center",
-      }}
-    >
-      <div className="container" style={{ maxWidth: "650px" }}>
-        <h2 className="text-light mb-4 text-center">Crear cuenta</h2>
+    <main className="py-5" style={{ minHeight: "100vh", background: "#111" }}>
+      <div className="container" style={{ maxWidth: 650 }}>
+        <h2 className="text-light text-center mb-4">Crear cuenta</h2>
 
         <form
           onSubmit={onSubmit}
-          className="p-4 rounded-3"
-          style={{ backgroundColor: "#1e1e1e", border: "1px solid #444" }}
+          className="p-4 rounded-3 bg-dark border border-secondary"
           noValidate
         >
-          {errors.api && (
-            <div className="alert alert-danger">{errors.api}</div>
-          )}
-
           <div className="row g-3">
             <div className="col-md-6">
-              <label className="form-label text-light">RUN</label>
               <input
                 id="run"
                 className={cls("run")}
-                placeholder="12345678-9"
+                placeholder="12345678-9 (sin puntos, con guion)"
                 value={form.run}
                 onChange={onChange}
               />
@@ -224,10 +222,10 @@ export default function Registro() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label text-light">Nombre</label>
               <input
                 id="name"
                 className={cls("name")}
+                placeholder="Nombre (mín. 2 caracteres)"
                 value={form.name}
                 onChange={onChange}
               />
@@ -235,10 +233,10 @@ export default function Registro() {
             </div>
 
             <div className="col-md-12">
-              <label className="form-label text-light">Apellidos</label>
               <input
                 id="last"
                 className={cls("last")}
+                placeholder="Apellidos (mín. 2 caracteres)"
                 value={form.last}
                 onChange={onChange}
               />
@@ -246,11 +244,11 @@ export default function Registro() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label text-light">Correo</label>
               <input
                 id="email"
-                className={cls("email")}
                 type="email"
+                className={cls("email")}
+                placeholder="correo@ejemplo.cl"
                 value={form.email}
                 onChange={onChange}
               />
@@ -258,10 +256,10 @@ export default function Registro() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label text-light">Usuario</label>
               <input
                 id="user"
                 className={cls("user")}
+                placeholder="Usuario (4–20 caracteres)"
                 value={form.user}
                 onChange={onChange}
               />
@@ -269,11 +267,11 @@ export default function Registro() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label text-light">Contraseña</label>
               <input
                 id="pass"
                 type="password"
                 className={cls("pass")}
+                placeholder="Contraseña (4–10 caracteres)"
                 value={form.pass}
                 onChange={onChange}
               />
@@ -281,13 +279,11 @@ export default function Registro() {
             </div>
 
             <div className="col-md-6">
-              <label className="form-label text-light">
-                Repetir contraseña
-              </label>
               <input
                 id="pass2"
                 type="password"
                 className={cls("pass2")}
+                placeholder="Repite la contraseña"
                 value={form.pass2}
                 onChange={onChange}
               />
@@ -295,10 +291,10 @@ export default function Registro() {
             </div>
 
             <div className="col-md-12">
-              <label className="form-label text-light">Dirección</label>
               <input
                 id="address"
                 className={cls("address")}
+                placeholder="Dirección (mín. 5 caracteres)"
                 value={form.address}
                 onChange={onChange}
               />
@@ -306,14 +302,13 @@ export default function Registro() {
             </div>
 
             <div className="col-md-12">
-              <label className="form-label text-light">Rol</label>
               <select
                 id="role"
                 className={`form-select ${errors.role ? "is-invalid" : ""}`}
                 value={form.role}
                 onChange={onChange}
               >
-                <option value="">Selecciona…</option>
+                <option value="">Selecciona un rol</option>
                 <option value="cliente">Cliente</option>
                 <option value="vendedor">Vendedor</option>
                 <option value="admin">Administrador</option>
@@ -322,20 +317,26 @@ export default function Registro() {
             </div>
           </div>
 
-          <div className="mt-4 d-flex gap-2">
-            <button className="btn btn-primary w-50" type="submit">
-              Crear cuenta
-            </button>
-            <Link to="/login" className="btn btn-outline-light w-50">
-              Ya tengo cuenta
-            </Link>
-          </div>
+          {errors.api && (
+            <div className="alert alert-danger mt-3">
+              {errors.api}
+            </div>
+          )}
 
           {ok && (
             <div className="alert alert-success mt-3">
               ¡Cuenta creada! Redirigiendo…
             </div>
           )}
+
+          <div className="mt-4 d-flex gap-2">
+            <button className="btn btn-primary w-50">
+              Crear cuenta
+            </button>
+            <Link to="/login" className="btn btn-outline-light w-50">
+              Ya tengo cuenta
+            </Link>
+          </div>
         </form>
       </div>
     </main>

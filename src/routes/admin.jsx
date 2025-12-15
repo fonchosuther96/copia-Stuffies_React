@@ -15,7 +15,7 @@ import ProductosList from "../admin/pages/ProductosList.jsx";
 import ProductoNuevo from "../admin/pages/ProductoNuevo.jsx";
 import ProductoEditar from "../admin/pages/ProductoEditar.jsx";
 import ProductosCriticos from "../admin/pages/ProductosCriticos.jsx";
-import Reportes from "../admin/pages/Reportes.jsx"; // reportes globales o de productos
+import Reportes from "../admin/pages/Reportes.jsx";
 
 // Categorías
 import CategoriasList from "../admin/pages/CategoriasList.jsx";
@@ -26,48 +26,110 @@ import UsuariosList from "../admin/pages/UsuariosList.jsx";
 import UsuarioEditar from "../admin/pages/UsuarioEditar.jsx";
 import HistorialCompras from "../admin/pages/HistorialCompras.jsx";
 
-// Perfil
-import Perfil from "../admin/pages/Perfil.jsx";
+
 
 export const adminRoutes = [
   {
     path: "/admin",
-    // 👇 Aquí protegemos TODO el layout admin
+    // ADMIN y VENDEDOR pueden entrar al panel
     element: (
-      <ProtectedRoute roles={["ROLE_ADMIN"]}>
+      <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_VENDEDOR"]}>
         <AdminLayout />
       </ProtectedRoute>
     ),
     children: [
-      // Home / Dashboard
+      // Dashboard
       { index: true, element: <Dashboard /> },
 
-      // Órdenes
+      // Órdenes (ADMIN y VENDEDOR)
       { path: "ordenes", element: <Ordenes /> },
       { path: "boleta/:id", element: <Boleta /> },
 
-      // Productos
+      // Productos (listado)
       { path: "productos", element: <ProductosList /> },
-      { path: "productos/nuevo", element: <ProductoNuevo /> },
-      { path: "productos/editar/:id", element: <ProductoEditar /> },
-      { path: "productos/criticos", element: <ProductosCriticos /> },
 
-      // Reportes
-      { path: "reportes", element: <Reportes /> },
+      // SOLO ADMIN
+      {
+        path: "productos/nuevo",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <ProductoNuevo />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "productos/editar/:id",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <ProductoEditar />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "productos/criticos",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <ProductosCriticos />
+          </ProtectedRoute>
+        ),
+      },
 
-      // Categorías
-      { path: "categorias", element: <CategoriasList /> },
-      { path: "categorias/nueva", element: <CategoriaNueva /> },
+      // REPORTES (ADMIN y VENDEDOR)
+      {
+        path: "reportes",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN", "ROLE_VENDEDOR"]}>
+            <Reportes />
+          </ProtectedRoute>
+        ),
+      },
 
-      // Usuarios
-      { path: "usuarios", element: <UsuariosList /> },
-      { path: "usuarios/editar/:id", element: <UsuarioEditar /> },
-      { path: "historial/:id", element: <HistorialCompras /> },
+      // Categorías (solo ADMIN)
+      {
+        path: "categorias",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <CategoriasList />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "categorias/nueva",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <CategoriaNueva />
+          </ProtectedRoute>
+        ),
+      },
 
-      // Perfil
-      { path: "perfil", element: <Perfil /> },
+      // Usuarios (solo ADMIN)
+      {
+        path: "usuarios",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <UsuariosList />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "usuarios/editar/:id",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <UsuarioEditar />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "historial/:id",
+        element: (
+          <ProtectedRoute roles={["ROLE_ADMIN"]}>
+            <HistorialCompras />
+          </ProtectedRoute>
+        ),
+      },
 
-      // Fallback opcional
+
+      // Fallback
       { path: "*", element: <Navigate to="/admin" replace /> },
     ],
   },

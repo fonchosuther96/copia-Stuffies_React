@@ -9,7 +9,6 @@ export default function AdminHeader() {
 
   const username = user?.username || "usuario";
 
-  // role puede venir como string o array
   let rawRole =
     user?.role ||
     (Array.isArray(user?.roles) ? user.roles[0] : "") ||
@@ -45,7 +44,7 @@ export default function AdminHeader() {
   return (
     <header className="admin-header container px-3 py-2 my-3 rounded-4">
       <div className="d-flex align-items-center justify-content-between gap-3">
-        {/* Marca (logo + texto) */}
+        {/* Marca */}
         <Link
           to="/admin"
           className="d-flex align-items-center gap-2 text-decoration-none"
@@ -61,13 +60,13 @@ export default function AdminHeader() {
             className="fw-bold"
             style={{ color: "var(--cx-text, #0f172a)" }}
           >
-            Administrador Stuffies
+            {isAdmin ? "Administrador Stuffies" : "Panel Vendedor Stuffies"}
           </span>
         </Link>
 
         {/* Acciones */}
         <nav className="nav-actions d-flex align-items-center gap-3">
-          {/* Usuario + Rol: Admin / Vendedor */}
+          {/* Usuario + Rol */}
           <span className="ah-link text-uppercase">
             {username} · Rol: {friendlyRole}
           </span>
@@ -75,11 +74,14 @@ export default function AdminHeader() {
           <Link to="/" className="ah-link">
             Ir a la tienda
           </Link>
-          <Link to="/admin" className="ah-link">
-            Dashboard
-          </Link>
 
-          {/* Botón chip */}
+          {/* Dashboard solo visible para ADMIN */}
+          {isAdmin && (
+            <Link to="/admin" className="ah-link">
+              Dashboard
+            </Link>
+          )}
+
           <button type="button" onClick={onLogout} className="btn-chip">
             Cerrar sesión
           </button>

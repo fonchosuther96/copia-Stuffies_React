@@ -1,3 +1,4 @@
+// src/pages/DetalleProducto.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { getLiveById, getStockPorTalla } from "../services/inventory.js";
@@ -27,7 +28,7 @@ export default function DetalleProducto() {
   const [loading, setLoading] = useState(true);
   const [tallaSeleccionada, setTallaSeleccionada] = useState("");
   const [colorSeleccionado, setColorSeleccionado] = useState("");
-  const [stockPorTalla, setStockPorTalla] = useState({}); // Aquí guardaremos el stock por talla
+  const [stockPorTalla, setStockPorTalla] = useState({});
 
   // Cargar producto: primero intenta API, si no, inventario local
   useEffect(() => {
@@ -57,7 +58,7 @@ export default function DetalleProducto() {
 
           const normalizado = {
             ...data,
-            id: data.id, // aseguramos que sea el id de la BD
+            id: data.id,
             imagen: resolveImagen(data),
             tallas: tallasNormalizadas,
           };
@@ -67,7 +68,6 @@ export default function DetalleProducto() {
           return;
         }
       } catch (e) {
-        // Ignoramos el error y probamos con inventario local
         console.warn("No se pudo obtener el producto desde la API:", e);
       }
 
@@ -87,25 +87,24 @@ export default function DetalleProducto() {
     cargarProducto();
   }, [numericId]);
 
-  // Obtenemos el stock por talla (si existe) desde el inventario
+  // Obtener el stock por talla (si existe) desde el inventario
   useEffect(() => {
-    if (producto) {
-      const obtenerStockPorTalla = async () => {
-        try {
-          const stock = await getStockPorTalla(producto.id);
-          setStockPorTalla(stock || {});
-        } catch (error) {
-          console.error("Error al obtener el stock por talla:", error);
-          setStockPorTalla({});
-        }
-      };
+    if (!producto) return;
 
-      obtenerStockPorTalla();
-    }
+    const obtenerStockPorTalla = async () => {
+      try {
+        const stock = await getStockPorTalla(producto.id);
+        setStockPorTalla(stock || {});
+      } catch (error) {
+        console.error("Error al obtener el stock por talla:", error);
+        setStockPorTalla({});
+      }
+    };
+
+    obtenerStockPorTalla();
   }, [producto]);
 
-  // Stock total: si el producto de la API trae "stock", usamos eso.
-  // Si no, sumamos el stockPorTalla (caso productos locales).
+  // Stock total
   const totalStock = useMemo(() => {
     if (!producto) return 0;
 
@@ -121,7 +120,7 @@ export default function DetalleProducto() {
 
   const sinStock = totalStock <= 0;
 
-  // Tallas disponibles: primero las del producto, si no, las del mapa de stock
+  // Tallas disponibles
   const tallasDisponibles = useMemo(() => {
     if (!producto) return [];
 
@@ -133,7 +132,7 @@ export default function DetalleProducto() {
     return keys.length > 0 ? keys : [];
   }, [producto, stockPorTalla]);
 
-  // Colores (solo existen en productos locales)
+  // Colores (solo productos locales)
   const coloresDisponibles =
     (producto && producto.colores && producto.colores.length > 0
       ? producto.colores
@@ -154,18 +153,23 @@ export default function DetalleProducto() {
   const onAddToCart = () => {
     if (!producto || sinStock) return;
 
-    const res = addToCart({
-      id: producto.id,
-      nombre: producto.nombre,
-      precio: producto.precio,
-      imagen: resolveImagen(producto),
-      cantidad: 1,
-      talla: tallaSeleccionada || "Única",
-      color: colorSeleccionado || "Único",
-    });
+    // Añadimos al carrito usando la API nueva (producto, opts)
+    addToCart(
+      {
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        imagen: resolveImagen(producto),
+      },
+      {
+        talla: tallaSeleccionada || "Única",
+        color: colorSeleccionado || "Único",
+        cantidad: 1,
+      }
+    );
 
-    window.dispatchEvent(new Event("cart:updated"));
-    alert(`Añadido al carrito. Ítems en carrito: ${res.cantidad}`);
+    // El cart.js ya hace window.dispatchEvent("cart:updated"),
+    // así que no necesitamos hacerlo de nuevo aquí.
   };
 
   // =======================
@@ -228,27 +232,30 @@ export default function DetalleProducto() {
               ${CLP.format(producto.precio || 0)}
             </p>
 
-            {/* Stock por talla */}
+            {/* Tallas + stock por talla */}
             {tallasDisponibles.length > 0 && (
               <div className="mb-3">
                 <label className="form-label">Talla</label>
                 <div className="d-flex flex-wrap gap-2">
                   {tallasDisponibles.map((t) => {
                     const stockTalla = stockPorTalla[t] ?? 0;
-                    const agotada = stockTalla <= 0;
+                    const agotada = tieneStockPorTalla
+                      ? stockTalla <= 0
+                      : sinStock;
 
                     return (
                       <button
                         key={t}
                         type="button"
                         className={`btn btn-sm ${
-                          t === tallaSeleccionada ? "btn-primary" : "btn-outline-light"
+                          t === tallaSeleccionada
+                            ? "btn-primary"
+                            : "btn-outline-light"
                         }`}
                         disabled={agotada}
                         onClick={() => setTallaSeleccionada(t)}
                       >
-                        {t}{" "}
-                        {agotada ? "(Agotada)" : ""}
+                        {t} {tieneStockPorTalla && agotada ? "(Agotada)" : ""}
                       </button>
                     );
                   })}
@@ -257,7 +264,7 @@ export default function DetalleProducto() {
                   {tallaSeleccionada && (
                     <span>
                       Stock talla {tallaSeleccionada}:{" "}
-                      {stockPorTalla[tallaSeleccionada] || 0}
+                      {stockPorTalla[tallaSeleccionada] ?? 0}
                     </span>
                   )}
                 </div>
@@ -274,7 +281,9 @@ export default function DetalleProducto() {
                       key={c}
                       type="button"
                       className={`btn btn-sm ${
-                        c === colorSeleccionado ? "btn-primary" : "btn-outline-light"
+                        c === colorSeleccionado
+                          ? "btn-primary"
+                          : "btn-outline-light"
                       }`}
                       onClick={() => setColorSeleccionado(c)}
                     >

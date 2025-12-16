@@ -1,3 +1,7 @@
+http://174.129.52.156/home
+
+http://174.129.52.156:8080/swagger-ui/index.html#/
+
 #  ☆ Stuffies 
 -Stuffies nace en Chile con la idea de ofrecer básicos de calidad y diseño fresco e Inspirados en la cultura urbana, trabajamos colecciones versátiles que combinan comodidad y estilo.
 

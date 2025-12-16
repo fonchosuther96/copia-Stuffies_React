@@ -1,6 +1,6 @@
 // src/services/apiClient.js
 
-const API_BASE_URL = "http://localhost:8080"; // mismo puerto que Spring Boot
+const API_BASE_URL = "http://174.129.52.156:8080"; // mismo puerto que Spring Boot
 
 function getSessionToken() {
   try {

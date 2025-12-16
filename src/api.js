@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: "http://174.129.52.156:8080",
 });
 
 // 🔴 SIEMPRE leer el token actualizado
